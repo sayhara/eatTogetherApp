@@ -1,0 +1,48 @@
+# ===== Spring Boot / Gradle =====
+.gradle/
+build/
+bin/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code
+.vscode/
+
+# Environment / secrets
+.env
+.env.local
+src/main/resources/application-local.yml
+application-secrets.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ===== Flutter =====
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/android/.gradle/
+frontend/android/app/debug/
+frontend/android/app/profile/
+frontend/android/app/release/
+frontend/android/local.properties
+frontend/ios/Flutter/.last_build_id
+frontend/ios/Pods/
+frontend/.idea/
+
+# APT generated
+.apt_generated/

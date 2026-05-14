@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1019128042472",
+    "project_id": "eat-together-2b347",
+    "storage_bucket": "eat-together-2b347.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1019128042472:android:655a98f420f60ca8670a5d",
+        "android_client_info": {
+          "package_name": "com.eattogether.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxkFveh4hEiGdYnGAUadz_tl3jJjU_664"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
