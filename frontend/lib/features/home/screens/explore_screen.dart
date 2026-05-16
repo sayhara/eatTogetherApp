@@ -34,13 +34,24 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final coords = ref.read(nearbyCoordsProvider);
     if (coords == null) return;
     final dist = (center.latitude - coords.lat).abs() + (center.longitude - coords.lng).abs();
-    setState(() => _centerMoved = dist > 0.005);
-    _mapCenter = center;
+    setState(() {
+      _mapCenter = center;
+      _centerMoved = dist > 0.005;
+    });
   }
 
   void _researchHere() {
     ref.read(nearbyCoordsProvider.notifier).set(_mapCenter.latitude, _mapCenter.longitude);
     setState(() => _centerMoved = false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final coords = ref.read(nearbyCoordsProvider);
+    if (coords != null && _mapCenter.latitude == 37.5665 && _mapCenter.longitude == 126.9780) {
+      _mapCenter = LatLng(coords.lat, coords.lng);
+    }
   }
 
   @override
@@ -53,10 +64,6 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     ref.listen(nearbyGatheringsProvider, (_, next) {
       next.whenData(_updateMarkers);
     });
-
-    if (coords != null && _mapCenter.latitude == 37.5665 && _mapCenter.longitude == 126.9780) {
-      _mapCenter = LatLng(coords.lat, coords.lng);
-    }
 
     final timeStr = DateFormat('H:mm').format(DateTime.now());
 
