@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
-import '../../features/home/screens/home_screen.dart';
+import '../../features/home/screens/main_screen.dart';
 import '../../features/gathering/screens/gathering_detail_screen.dart';
 import '../../features/gathering/screens/gathering_create_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
@@ -46,7 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/',
-        builder: (context, _) => const HomeScreen(),
+        builder: (context, _) => const MainScreen(),
       ),
       GoRoute(
         path: '/gathering/create',

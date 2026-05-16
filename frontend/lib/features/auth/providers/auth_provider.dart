@@ -28,6 +28,11 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     if (token == null) return null;
     try {
       final res = await ref.read(apiClientProvider).dio.get('/api/users/me');
+      if (res.data is! Map<String, dynamic>) {
+        debugPrint('[AUTH] _loadUser: unexpected response type, clearing token');
+        await ref.read(tokenStorageProvider).clear();
+        return null;
+      }
       final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
       debugPrint('[AUTH] _loadUser: /api/users/me => ${res.statusCode}, user=${data['id']}');
       return UserModel.fromJson(data);
