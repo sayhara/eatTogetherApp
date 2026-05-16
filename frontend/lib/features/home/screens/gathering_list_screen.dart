@@ -7,6 +7,56 @@ import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
+final _now = DateTime.now();
+
+final _sampleGatherings = <GatheringModel>[
+  GatheringModel(
+    id: -1, hostId: 0, hostNickname: '맛있어요',
+    title: '저녁에 춘천닭갈비 먹으실 분!',
+    restaurantName: '홍촌천닭갈비 태장점',
+    latitude: 37.495, longitude: 126.936,
+    maxParticipants: 4, currentParticipants: 1,
+    mealTime: _now.add(const Duration(days: 3, hours: 7)),
+    status: 'OPEN', category: 'KOREAN',
+  ),
+  GatheringModel(
+    id: -2, hostId: 0, hostNickname: '파스타러버',
+    title: '파스타 먹어요~',
+    restaurantName: '덕수파스타 원주일산점',
+    latitude: 37.496, longitude: 126.937,
+    maxParticipants: 4, currentParticipants: 1,
+    mealTime: _now.add(const Duration(days: 4, hours: 18, minutes: 30)),
+    status: 'OPEN', category: 'WESTERN',
+  ),
+  GatheringModel(
+    id: -3, hostId: 0, hostNickname: '기사식당팬',
+    title: '아침에 같이 기사식당 가요',
+    restaurantName: '아줌마기사식당',
+    latitude: 37.494, longitude: 126.935,
+    maxParticipants: 6, currentParticipants: 1,
+    mealTime: _now.add(const Duration(days: 2, hours: 9)),
+    status: 'OPEN', category: 'KOREAN',
+  ),
+  GatheringModel(
+    id: -4, hostId: 0, hostNickname: '치맥좋아',
+    title: '저녁에 치맥 함께해요!!!!',
+    restaurantName: '홍대델리치킨',
+    latitude: 37.493, longitude: 126.934,
+    maxParticipants: 5, currentParticipants: 1,
+    mealTime: _now.add(const Duration(days: 1, hours: 18, minutes: 30)),
+    status: 'OPEN', category: 'FAST_FOOD',
+  ),
+  GatheringModel(
+    id: -5, hostId: 0, hostNickname: '갈비마니아',
+    title: '갈비 같이 드실 분??',
+    restaurantName: '한우가 한우리',
+    latitude: 37.492, longitude: 126.933,
+    maxParticipants: 4, currentParticipants: 3,
+    mealTime: _now.add(const Duration(days: 5, hours: 19)),
+    status: 'OPEN', category: 'KOREAN',
+  ),
+];
+
 class GatheringListScreen extends ConsumerStatefulWidget {
   const GatheringListScreen({super.key});
 
@@ -16,11 +66,23 @@ class GatheringListScreen extends ConsumerStatefulWidget {
 
 class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
   bool _locationInit = false;
+  bool _isSearching = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _initLocation();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _initLocation() async {
@@ -52,6 +114,20 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
       ref.read(nearbyCoordsProvider.notifier).set(position.latitude, position.longitude);
       ref.read(authProvider.notifier).updateLocation(latitude: position.latitude, longitude: position.longitude);
     }
+  }
+
+  void _startSearch() => setState(() { _isSearching = true; _searchController.clear(); });
+
+  void _stopSearch() => setState(() { _isSearching = false; _searchController.clear(); _searchQuery = ''; });
+
+  List<GatheringModel> _filterAndMerge(List<GatheringModel> real) {
+    final all = real.isEmpty ? [...real, ..._sampleGatherings] : real;
+    if (_searchQuery.trim().isEmpty) return all;
+    final q = _searchQuery.toLowerCase();
+    return all.where((g) =>
+      g.title.toLowerCase().contains(q) ||
+      g.restaurantName.toLowerCase().contains(q)
+    ).toList();
   }
 
   @override
@@ -124,36 +200,46 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
             ),
           ),
 
-          // 모임 목록 header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-            child: Row(
-              children: [
-                const Text(
-                  '모임 목록',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 22, color: Colors.black54),
-                  onPressed: () => ref.invalidate(nearbyGatheringsProvider),
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.search, size: 22, color: Colors.black54),
-                  onPressed: () {},
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_none, size: 22, color: Colors.black54),
-                  onPressed: () {},
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
+          // 모임 목록 header (normal) or Search bar
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _isSearching
+                ? _SearchBar(
+                    key: const ValueKey('search'),
+                    controller: _searchController,
+                    onClose: _stopSearch,
+                  )
+                : Padding(
+                    key: const ValueKey('header'),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                    child: Row(
+                      children: [
+                        const Text(
+                          '모임 목록',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.refresh, size: 22, color: Colors.black54),
+                          onPressed: () => ref.invalidate(nearbyGatheringsProvider),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.search, size: 22, color: Colors.black54),
+                          onPressed: _startSearch,
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none, size: 22, color: Colors.black54),
+                          onPressed: () {},
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
 
           // Gathering list
@@ -161,40 +247,96 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
             child: gatheringsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF03C75A))),
               error: (e, _) => Center(child: Text('오류: $e')),
-              data: (gatherings) => RefreshIndicator(
-                onRefresh: () async => ref.invalidate(nearbyGatheringsProvider),
-                color: const Color(0xFF03C75A),
-                child: gatherings.isEmpty
-                    ? ListView(
-                        children: const [
-                          SizedBox(height: 80),
-                          Center(
-                            child: Text(
-                              '근처에 모임이 없어요\n먼저 모임을 만들어보세요!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey, fontSize: 15),
+              data: (gatherings) {
+                final display = _filterAndMerge(gatherings);
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(nearbyGatheringsProvider),
+                  color: const Color(0xFF03C75A),
+                  child: display.isEmpty
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 80),
+                            Center(
+                              child: Text(
+                                _searchQuery.isNotEmpty
+                                    ? '검색 결과가 없어요'
+                                    : '근처에 모임이 없어요\n먼저 모임을 만들어보세요!',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey, fontSize: 15),
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                        itemCount: gatherings.length,
-                        itemBuilder: (ctx, i) => _GatheringCard(gathering: gatherings[i]),
-                      ),
-              ),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                          itemCount: display.length,
+                          itemBuilder: (ctx, i) => _GatheringCard(gathering: display[i]),
+                        ),
+                );
+              },
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await context.push('/gathering/create');
-          ref.invalidate(nearbyGatheringsProvider);
-        },
-        backgroundColor: const Color(0xFF03C75A),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('모임 만들기', style: TextStyle(color: Colors.white)),
+      floatingActionButton: _isSearching
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                await context.push('/gathering/create');
+                ref.invalidate(nearbyGatheringsProvider);
+              },
+              backgroundColor: const Color(0xFF03C75A),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('모임 만들기', style: TextStyle(color: Colors.white)),
+            ),
+    );
+  }
+}
+
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onClose;
+  const _SearchBar({super.key, required this.controller, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black54),
+            onPressed: onClose,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: '모임 이름, 식당 이름으로 검색',
+                hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          if (true)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20, color: Colors.black45),
+              onPressed: () => controller.clear(),
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(),
+            ),
+        ],
       ),
     );
   }
@@ -236,9 +378,14 @@ class _GatheringCard extends StatelessWidget {
     final isRecruiting = gathering.isOpen && !gathering.isFull;
     final color = _categoryColor[gathering.category] ?? const Color(0xFF26A69A);
     final emoji = _categoryEmoji[gathering.category] ?? '🍽️';
+    final isSample = gathering.id < 0;
 
     return GestureDetector(
-      onTap: () => context.push('/gathering/${gathering.id}'),
+      onTap: isSample
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('실제 모임을 만들어 참여해보세요!'), duration: Duration(seconds: 2)),
+              )
+          : () => context.push('/gathering/${gathering.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
@@ -256,7 +403,6 @@ class _GatheringCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category image placeholder
             Container(
               width: 80,
               height: 80,
@@ -269,7 +415,6 @@ class _GatheringCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,11 +439,7 @@ class _GatheringCard extends StatelessWidget {
                         ),
                         child: Text(
                           isRecruiting ? '모집중' : '마감',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                       ),
                     ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'gathering_list_screen.dart';
+import 'explore_screen.dart';
 import '../../mypage/screens/mypage_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -20,7 +21,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         index: _currentIndex,
         children: const [
           GatheringListScreen(),
-          _ExploreScreen(),
+          ExploreScreen(),
           _ChatListScreen(),
           MyPageScreen(),
         ],
@@ -56,19 +57,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             label: '마이',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ExploreScreen extends StatelessWidget {
-  const _ExploreScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('탐색', style: TextStyle(fontSize: 18, color: Colors.grey)),
       ),
     );
   }
