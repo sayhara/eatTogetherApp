@@ -41,8 +41,9 @@ public interface GatheringRepository extends JpaRepository<Gathering, Long> {
         SELECT DISTINCT g FROM Gathering g
         JOIN FETCH g.host
         JOIN g.participants p
-        WHERE p.user.id = :userId AND p.status = 'APPROVED'
+        WHERE p.user.id = :userId AND p.status = :status
         ORDER BY g.mealTime ASC
         """)
-    List<Gathering> findJoinedByUserId(@Param("userId") Long userId);
+    List<Gathering> findJoinedByUserId(@Param("userId") Long userId,
+            @Param("status") com.eattogether.gathering.domain.ParticipantStatus status);
 }

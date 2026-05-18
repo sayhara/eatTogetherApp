@@ -100,16 +100,12 @@ public class GatheringService {
             throw new BusinessException(ErrorCode.GATHERING_CLOSED);
         }
 
-        participantRepository.findByGatheringIdAndUserId(gatheringId, userId).ifPresent(p -> {
-            if (p.getStatus() == ParticipantStatus.APPROVED) {
-                throw new BusinessException(ErrorCode.ALREADY_JOINED);
-            }
-            if (p.getStatus() == ParticipantStatus.PENDING) {
-                throw new BusinessException(ErrorCode.ALREADY_PENDING);
-            }
-            // REJECTED → delete old record and allow re-apply
-            participantRepository.delete(p);
-        });
+        var existing = participantRepository.findByGatheringIdAndUserId(gatheringId, userId);
+        if (existing.isPresent()) {
+            GatheringParticipant p = existing.get();
+            if (p.getStatus() == ParticipantStatus.APPROVED) throw new BusinessException(ErrorCode.ALREADY_JOINED);
+            if (p.getStatus() == ParticipantStatus.PENDING) throw new BusinessException(ErrorCode.ALREADY_PENDING);
+        }
 
         Long hostId = gathering.getHost().getId();
         if (userBlockService.getExcludedUserIds(userId).contains(hostId)) {
@@ -122,11 +118,17 @@ public class GatheringService {
         }
 
         User joiner = findUser(userId);
-        participantRepository.save(GatheringParticipant.builder()
-                .gathering(gathering)
-                .user(joiner)
-                .status(ParticipantStatus.PENDING)
-                .build());
+
+        if (existing.isPresent()) {
+            // REJECTED → 상태만 PENDING으로 초기화 (delete+create 시 유니크 제약 위반 방지)
+            existing.get().resetToPending();
+        } else {
+            participantRepository.save(GatheringParticipant.builder()
+                    .gathering(gathering)
+                    .user(joiner)
+                    .status(ParticipantStatus.PENDING)
+                    .build());
+        }
 
         fcmService.sendToUser(
                 hostId,
@@ -286,7 +288,7 @@ public class GatheringService {
     }
 
     public List<GatheringResponse> getMyJoined(Long userId) {
-        return gatheringRepository.findJoinedByUserId(userId).stream()
+        return gatheringRepository.findJoinedByUserId(userId, ParticipantStatus.APPROVED).stream()
                 .map(GatheringResponse::from)
                 .collect(Collectors.toList());
     }

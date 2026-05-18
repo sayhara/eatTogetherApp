@@ -11,6 +11,7 @@ import com.eattogether.chat.repository.ChatReadStatusRepository;
 import com.eattogether.common.exception.BusinessException;
 import com.eattogether.common.exception.ErrorCode;
 import com.eattogether.fcm.service.FcmService;
+import com.eattogether.gathering.domain.ParticipantStatus;
 import com.eattogether.gathering.repository.GatheringParticipantRepository;
 import com.eattogether.user.domain.User;
 import com.eattogether.user.repository.UserRepository;
@@ -46,7 +47,7 @@ public class ChatService {
                 .type(MessageType.TALK)
                 .build());
 
-        List<Long> otherIds = participantRepository.findUserIdsByGatheringId(gatheringId).stream()
+        List<Long> otherIds = participantRepository.findUserIdsByGatheringId(gatheringId, ParticipantStatus.APPROVED).stream()
                 .filter(id -> !id.equals(senderId))
                 .collect(Collectors.toList());
         if (!otherIds.isEmpty()) {

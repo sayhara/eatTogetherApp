@@ -48,4 +48,8 @@ public class GatheringParticipant {
     public void reject() {
         this.status = ParticipantStatus.REJECTED;
     }
+
+    public void resetToPending() {
+        this.status = ParticipantStatus.PENDING;
+    }
 }

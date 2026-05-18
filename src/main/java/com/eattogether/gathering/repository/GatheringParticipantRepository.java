@@ -19,6 +19,7 @@ public interface GatheringParticipantRepository extends JpaRepository<GatheringP
             @Param("gatheringId") Long gatheringId,
             @Param("status") ParticipantStatus status);
 
-    @Query("SELECT p.user.id FROM GatheringParticipant p WHERE p.gathering.id = :gatheringId AND p.status = 'APPROVED'")
-    List<Long> findApprovedUserIdsByGatheringId(@Param("gatheringId") Long gatheringId);
+    // ChatService에서 FCM 발송 대상 조회 (APPROVED만)
+    @Query("SELECT p.user.id FROM GatheringParticipant p WHERE p.gathering.id = :gatheringId AND p.status = :status")
+    List<Long> findUserIdsByGatheringId(@Param("gatheringId") Long gatheringId, @Param("status") ParticipantStatus status);
 }
