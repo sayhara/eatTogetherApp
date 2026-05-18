@@ -71,11 +71,13 @@ public class Gathering {
     private LocalDateTime updatedAt;
 
     public int getCurrentParticipantCount() {
-        return participants.size();
+        return (int) participants.stream()
+                .filter(p -> p.getStatus() == ParticipantStatus.APPROVED)
+                .count();
     }
 
     public boolean isFull() {
-        return participants.size() >= maxParticipants;
+        return getCurrentParticipantCount() >= maxParticipants;
     }
 
     public boolean isHost(Long userId) {

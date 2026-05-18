@@ -14,6 +14,7 @@ public class ParticipantResponse {
     private String profileImageUrl;
     private LocalDateTime joinedAt;
     private boolean host;
+    private String status;
 
     public static ParticipantResponse from(GatheringParticipant participant, Long hostId) {
         return ParticipantResponse.builder()
@@ -22,6 +23,7 @@ public class ParticipantResponse {
                 .profileImageUrl(participant.getUser().getProfileImageUrl())
                 .joinedAt(participant.getJoinedAt())
                 .host(participant.getUser().getId().equals(hostId))
+                .status(participant.getStatus().name())
                 .build();
     }
 }

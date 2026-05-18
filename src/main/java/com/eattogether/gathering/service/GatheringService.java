@@ -5,6 +5,7 @@ import com.eattogether.common.exception.ErrorCode;
 import com.eattogether.gathering.domain.Gathering;
 import com.eattogether.gathering.domain.GatheringParticipant;
 import com.eattogether.gathering.domain.GatheringStatus;
+import com.eattogether.gathering.domain.ParticipantStatus;
 import com.eattogether.fcm.service.FcmService;
 import com.eattogether.gathering.dto.GatheringCreateRequest;
 import com.eattogether.gathering.dto.GatheringUpdateRequest;
@@ -31,7 +32,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class GatheringService {
 
-    // 위도 1도 ≈ 111km
     private static final double KM_PER_DEGREE = 111.0;
 
     private final GatheringRepository gatheringRepository;
@@ -56,10 +56,10 @@ public class GatheringService {
                 .mealTime(request.getMealTime())
                 .build());
 
-        // 호스트는 자동으로 참가자에 포함
         participantRepository.save(GatheringParticipant.builder()
                 .gathering(gathering)
                 .user(host)
+                .status(ParticipantStatus.APPROVED)
                 .build());
 
         return GatheringResponse.from(gathering);
@@ -99,16 +99,25 @@ public class GatheringService {
         if (gathering.getStatus() != GatheringStatus.OPEN) {
             throw new BusinessException(ErrorCode.GATHERING_CLOSED);
         }
-        if (participantRepository.existsByGatheringIdAndUserId(gatheringId, userId)) {
-            throw new BusinessException(ErrorCode.ALREADY_JOINED);
-        }
+
+        participantRepository.findByGatheringIdAndUserId(gatheringId, userId).ifPresent(p -> {
+            if (p.getStatus() == ParticipantStatus.APPROVED) {
+                throw new BusinessException(ErrorCode.ALREADY_JOINED);
+            }
+            if (p.getStatus() == ParticipantStatus.PENDING) {
+                throw new BusinessException(ErrorCode.ALREADY_PENDING);
+            }
+            // REJECTED → delete old record and allow re-apply
+            participantRepository.delete(p);
+        });
+
         Long hostId = gathering.getHost().getId();
         if (userBlockService.getExcludedUserIds(userId).contains(hostId)) {
             throw new BusinessException(ErrorCode.BLOCKED_USER);
         }
 
-        long currentCount = participantRepository.countByGatheringId(gatheringId);
-        if (currentCount >= gathering.getMaxParticipants()) {
+        long approvedCount = participantRepository.countByGatheringIdAndStatus(gatheringId, ParticipantStatus.APPROVED);
+        if (approvedCount >= gathering.getMaxParticipants()) {
             throw new BusinessException(ErrorCode.GATHERING_FULL);
         }
 
@@ -116,16 +125,85 @@ public class GatheringService {
         participantRepository.save(GatheringParticipant.builder()
                 .gathering(gathering)
                 .user(joiner)
+                .status(ParticipantStatus.PENDING)
                 .build());
 
-        if (currentCount + 1 >= gathering.getMaxParticipants()) {
+        fcmService.sendToUser(
+                hostId,
+                "새 참가 신청",
+                joiner.getNickname() + "님이 '" + gathering.getTitle() + "'에 참가를 신청했습니다.");
+    }
+
+    @Transactional
+    public void approve(Long hostId, Long gatheringId, Long targetUserId) {
+        Gathering gathering = findGathering(gatheringId);
+        if (!gathering.isHost(hostId)) {
+            throw new BusinessException(ErrorCode.NOT_GATHERING_HOST);
+        }
+
+        GatheringParticipant participant = participantRepository
+                .findByGatheringIdAndUserId(gatheringId, targetUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPANT_NOT_FOUND));
+
+        if (participant.getStatus() != ParticipantStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        long approvedCount = participantRepository.countByGatheringIdAndStatus(gatheringId, ParticipantStatus.APPROVED);
+        if (approvedCount >= gathering.getMaxParticipants()) {
+            throw new BusinessException(ErrorCode.GATHERING_FULL);
+        }
+
+        participant.approve();
+
+        if (approvedCount + 1 >= gathering.getMaxParticipants()) {
             gathering.close();
         }
 
         fcmService.sendToUser(
-                gathering.getHost().getId(),
-                "새 참가자",
-                joiner.getNickname() + "님이 '" + gathering.getTitle() + "'에 참가했습니다.");
+                targetUserId,
+                "참가 승인",
+                "'" + gathering.getTitle() + "' 모임 참가가 승인되었습니다!");
+    }
+
+    @Transactional
+    public void reject(Long hostId, Long gatheringId, Long targetUserId) {
+        Gathering gathering = findGathering(gatheringId);
+        if (!gathering.isHost(hostId)) {
+            throw new BusinessException(ErrorCode.NOT_GATHERING_HOST);
+        }
+
+        GatheringParticipant participant = participantRepository
+                .findByGatheringIdAndUserId(gatheringId, targetUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPANT_NOT_FOUND));
+
+        if (participant.getStatus() != ParticipantStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        participant.reject();
+
+        fcmService.sendToUser(
+                targetUserId,
+                "참가 거절",
+                "'" + gathering.getTitle() + "' 모임 참가 신청이 거절되었습니다.");
+    }
+
+    public List<ParticipantResponse> getPendingParticipants(Long hostId, Long gatheringId) {
+        Gathering gathering = findGathering(gatheringId);
+        if (!gathering.isHost(hostId)) {
+            throw new BusinessException(ErrorCode.NOT_GATHERING_HOST);
+        }
+        return participantRepository.findByGatheringIdAndStatusWithUser(gatheringId, ParticipantStatus.PENDING)
+                .stream()
+                .map(p -> ParticipantResponse.from(p, hostId))
+                .toList();
+    }
+
+    public String getMyParticipationStatus(Long userId, Long gatheringId) {
+        return participantRepository.findByGatheringIdAndUserId(gatheringId, userId)
+                .map(p -> p.getStatus().name())
+                .orElse("NONE");
     }
 
     @Transactional
@@ -140,10 +218,10 @@ public class GatheringService {
                 .findByGatheringIdAndUserId(gatheringId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_JOINED));
 
+        boolean wasApproved = participant.getStatus() == ParticipantStatus.APPROVED;
         participantRepository.delete(participant);
 
-        // 정원 초과로 마감됐던 경우 다시 모집 재개
-        if (gathering.getStatus() == GatheringStatus.CLOSED) {
+        if (wasApproved && gathering.getStatus() == GatheringStatus.CLOSED) {
             gathering.reopen();
         }
     }
@@ -181,8 +259,8 @@ public class GatheringService {
             throw new BusinessException(ErrorCode.GATHERING_CANNOT_UPDATE);
         }
         if (request.getMaxParticipants() != null) {
-            long currentCount = participantRepository.countByGatheringId(gatheringId);
-            if (request.getMaxParticipants() < currentCount) {
+            long approvedCount = participantRepository.countByGatheringIdAndStatus(gatheringId, ParticipantStatus.APPROVED);
+            if (request.getMaxParticipants() < approvedCount) {
                 throw new BusinessException(ErrorCode.INVALID_MAX_PARTICIPANTS);
             }
         }
@@ -195,7 +273,8 @@ public class GatheringService {
     public List<ParticipantResponse> getParticipants(Long gatheringId) {
         Gathering gathering = findGathering(gatheringId);
         Long hostId = gathering.getHost().getId();
-        return participantRepository.findByGatheringIdWithUser(gatheringId).stream()
+        return participantRepository.findByGatheringIdAndStatusWithUser(gatheringId, ParticipantStatus.APPROVED)
+                .stream()
                 .map(p -> ParticipantResponse.from(p, hostId))
                 .toList();
     }

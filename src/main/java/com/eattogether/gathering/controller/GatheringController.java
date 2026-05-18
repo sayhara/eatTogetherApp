@@ -56,6 +56,38 @@ public class GatheringController {
         return ApiResponse.ok(gatheringService.getParticipants(gatheringId));
     }
 
+    @GetMapping("/{gatheringId}/participants/pending")
+    public ApiResponse<List<ParticipantResponse>> getPendingParticipants(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long gatheringId) {
+        return ApiResponse.ok(gatheringService.getPendingParticipants(userId(userDetails), gatheringId));
+    }
+
+    @PostMapping("/{gatheringId}/participants/{targetUserId}/approve")
+    public ApiResponse<Void> approveParticipant(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long gatheringId,
+            @PathVariable Long targetUserId) {
+        gatheringService.approve(userId(userDetails), gatheringId, targetUserId);
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/{gatheringId}/participants/{targetUserId}/reject")
+    public ApiResponse<Void> rejectParticipant(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long gatheringId,
+            @PathVariable Long targetUserId) {
+        gatheringService.reject(userId(userDetails), gatheringId, targetUserId);
+        return ApiResponse.ok(null);
+    }
+
+    @GetMapping("/{gatheringId}/my-status")
+    public ApiResponse<String> getMyParticipationStatus(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long gatheringId) {
+        return ApiResponse.ok(gatheringService.getMyParticipationStatus(userId(userDetails), gatheringId));
+    }
+
     @RateLimit(maxRequests = 20, windowSeconds = 3600, key = "gathering.join")
     @PostMapping("/{gatheringId}/join")
     public ApiResponse<Void> join(

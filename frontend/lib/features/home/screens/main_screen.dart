@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'gathering_list_screen.dart';
 import 'explore_screen.dart';
+import '../../chat/screens/chat_list_screen.dart';
 import '../../mypage/screens/mypage_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         children: const [
           GatheringListScreen(),
           ExploreScreen(),
-          _ChatListScreen(),
+          ChatListScreen(),
           MyPageScreen(),
         ],
       ),
@@ -57,19 +58,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             label: '마이',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ChatListScreen extends StatelessWidget {
-  const _ChatListScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('채팅', style: TextStyle(fontSize: 18, color: Colors.grey)),
       ),
     );
   }

@@ -32,7 +32,20 @@ public class GatheringParticipant {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "VARCHAR(20) DEFAULT 'APPROVED'")
+    @Builder.Default
+    private ParticipantStatus status = ParticipantStatus.PENDING;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime joinedAt;
+
+    public void approve() {
+        this.status = ParticipantStatus.APPROVED;
+    }
+
+    public void reject() {
+        this.status = ParticipantStatus.REJECTED;
+    }
 }

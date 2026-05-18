@@ -52,6 +52,7 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final detailAsync = ref.watch(gatheringDetailProvider(widget.gatheringId));
+    final myStatusAsync = ref.watch(myParticipationStatusProvider(widget.gatheringId));
     final user = ref.watch(authProvider).value;
     final isLoading = ref.watch(gatheringActionProvider);
 
@@ -66,12 +67,12 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
           final emoji = _categoryEmoji[gathering.category] ?? '🍽️';
           final isOpen = gathering.status == 'OPEN';
           final isClosed = gathering.status == 'CLOSED';
+          final myStatus = myStatusAsync.value ?? 'NONE';
 
           return Stack(
             children: [
               CustomScrollView(
                 slivers: [
-                  // Hero image + AppBar
                   SliverAppBar(
                     expandedHeight: 240,
                     pinned: true,
@@ -110,14 +111,12 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                     ),
                   ),
 
-                  // Content
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Title + badge
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -142,7 +141,6 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                             ],
                           ),
 
-                          // Description
                           if (gathering.description != null && gathering.description!.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             Text(
@@ -151,7 +149,6 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                             ),
                           ],
 
-                          // 참여 인원
                           const SizedBox(height: 16),
                           Row(
                             children: [
@@ -169,11 +166,30 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                             ],
                           ),
 
+                          // 신청 대기 안내 (비호스트, PENDING 상태)
+                          if (!isHost && myStatus == 'PENDING') ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF9C4),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFFFD600)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.access_time, size: 16, color: Color(0xFFFF8F00)),
+                                  SizedBox(width: 8),
+                                  Text('주최자의 승인을 기다리는 중입니다', style: TextStyle(fontSize: 13, color: Color(0xFF795548))),
+                                ],
+                              ),
+                            ),
+                          ],
+
                           const SizedBox(height: 28),
                           const Divider(height: 1),
                           const SizedBox(height: 24),
 
-                          // 모임 일시
                           const Text('모임 일시', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 14),
                           _DetailRow(
@@ -192,7 +208,6 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                           const Divider(height: 1),
                           const SizedBox(height: 24),
 
-                          // 모임 장소
                           const Text('모임 장소', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 14),
                           _DetailRow(
@@ -212,7 +227,6 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                           ],
                           const SizedBox(height: 14),
 
-                          // Map thumbnail
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: SizedBox(
@@ -253,13 +267,15 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                   ),
                   child: Row(
                     children: [
-                      // 채팅 버튼
+                      // 채팅 버튼: APPROVED이거나 호스트면 활성화
                       Expanded(
                         flex: 1,
                         child: OutlinedButton.icon(
-                          onPressed: () => context.push(
-                            '/gathering/${widget.gatheringId}/chat?title=${Uri.encodeComponent(gathering.title)}',
-                          ),
+                          onPressed: (isHost || myStatus == 'APPROVED')
+                              ? () => context.push(
+                                    '/gathering/${widget.gatheringId}/chat?title=${Uri.encodeComponent(gathering.title)}',
+                                  )
+                              : null,
                           icon: const Icon(Icons.chat_bubble_outline, size: 18),
                           label: const Text('채팅'),
                           style: OutlinedButton.styleFrom(
@@ -279,6 +295,7 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                           isHost: isHost,
                           isLoading: isLoading,
                           gatheringId: widget.gatheringId,
+                          myStatus: myStatus,
                         ),
                       ),
                     ],
@@ -304,6 +321,14 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
             Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 8),
             ListTile(
+              leading: const Icon(Icons.people_outline, color: Color(0xFF03C75A)),
+              title: const Text('참가 신청 관리'),
+              onTap: () {
+                Navigator.pop(context);
+                _showPendingSheet(context, gathering.id, ref);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.check_circle_outline, color: Color(0xFF03C75A)),
               title: const Text('모임 완료하기'),
               onTap: () async {
@@ -321,6 +346,126 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
       ),
     );
   }
+
+  void _showPendingSheet(BuildContext context, int gatheringId, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _PendingParticipantsSheet(gatheringId: gatheringId),
+    );
+  }
+}
+
+class _PendingParticipantsSheet extends ConsumerWidget {
+  final int gatheringId;
+  const _PendingParticipantsSheet({required this.gatheringId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingAsync = ref.watch(pendingParticipantsProvider(gatheringId));
+    final isLoading = ref.watch(gatheringActionProvider);
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.85,
+      builder: (_, controller) => Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('참가 신청 관리', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Expanded(
+            child: pendingAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF03C75A))),
+              error: (e, _) => Center(child: Text('오류: $e')),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('대기 중인 신청이 없습니다', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  controller: controller,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: list.length,
+                  separatorBuilder: (context, i) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final p = list[i];
+                    final userId = p['userId'] as int;
+                    final nickname = p['nickname'] as String? ?? '알 수 없음';
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFF03C75A),
+                        child: Text(
+                          nickname.isNotEmpty ? nickname[0] : '?',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      title: Text(nickname, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OutlinedButton(
+                            onPressed: isLoading ? null : () async {
+                              await ref.read(gatheringActionProvider.notifier).reject(gatheringId, userId);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('$nickname 님을 거절했습니다')),
+                                );
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text('거절', style: TextStyle(fontSize: 13)),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: isLoading ? null : () async {
+                              await ref.read(gatheringActionProvider.notifier).approve(gatheringId, userId);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('$nickname 님을 승인했습니다')),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF03C75A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text('승인', style: TextStyle(fontSize: 13)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 }
 
 class _ActionButton extends ConsumerWidget {
@@ -328,19 +473,23 @@ class _ActionButton extends ConsumerWidget {
   final bool isHost;
   final bool isLoading;
   final int gatheringId;
+  final String myStatus;
 
   const _ActionButton({
     required this.gathering,
     required this.isHost,
     required this.isLoading,
     required this.gatheringId,
+    required this.myStatus,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (gathering.status == 'CLOSED') {
+    if (gathering.status == 'CLOSED' || gathering.status == 'COMPLETED') {
       return ElevatedButton.icon(
-        onPressed: () => context.push('/gathering/$gatheringId/review'),
+        onPressed: myStatus == 'APPROVED' || isHost
+            ? () => context.push('/gathering/$gatheringId/review')
+            : null,
         icon: const Icon(Icons.star_outline, size: 18),
         label: const Text('리뷰 작성'),
         style: ElevatedButton.styleFrom(
@@ -365,6 +514,50 @@ class _ActionButton extends ConsumerWidget {
       );
     }
 
+    if (myStatus == 'APPROVED') {
+      return ElevatedButton(
+        onPressed: isLoading ? null : () async {
+          await ref.read(gatheringActionProvider.notifier).leave(gatheringId);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('모임에서 나갔습니다')),
+            );
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          foregroundColor: Colors.grey.shade700,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: const Text('참여 중 (나가기)', style: TextStyle(fontSize: 15)),
+      );
+    }
+
+    if (myStatus == 'PENDING') {
+      return ElevatedButton(
+        onPressed: isLoading ? null : () async {
+          await ref.read(gatheringActionProvider.notifier).leave(gatheringId);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('신청을 취소했습니다')),
+            );
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFFF9C4),
+          foregroundColor: const Color(0xFF795548),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFFFFD600)),
+          ),
+        ),
+        child: const Text('승인 대기 중 (취소)', style: TextStyle(fontSize: 15)),
+      );
+    }
+
+    // NONE or REJECTED
     return ElevatedButton(
       onPressed: isLoading || gathering.isFull || !gathering.isOpen
           ? null
@@ -372,7 +565,7 @@ class _ActionButton extends ConsumerWidget {
               await ref.read(gatheringActionProvider.notifier).join(gatheringId);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('참여 신청이 완료되었습니다!')),
+                  const SnackBar(content: Text('참가 신청이 완료되었습니다. 주최자의 승인을 기다려주세요!')),
                 );
               }
             },
@@ -383,7 +576,7 @@ class _ActionButton extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Text(
-        isLoading ? '처리 중...' : (gathering.isFull ? '인원 마감' : '참여하기'),
+        isLoading ? '처리 중...' : (gathering.isFull ? '인원 마감' : '참여 신청'),
         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
       ),
     );
