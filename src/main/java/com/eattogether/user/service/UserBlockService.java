@@ -46,7 +46,11 @@ public class UserBlockService {
 
     public List<BlockedUserResponse> getBlockedUsers(Long userId) {
         return userBlockRepository.findByBlockerIdOrderByCreatedAtDesc(userId).stream()
-                .map(BlockedUserResponse::from)
+                .map(block -> {
+                    User blockedUser = userRepository.findById(block.getBlockedId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                    return BlockedUserResponse.from(block, blockedUser);
+                })
                 .toList();
     }
 

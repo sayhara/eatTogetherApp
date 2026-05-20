@@ -335,7 +335,7 @@ class _BlockedUsersSheetState extends State<_BlockedUsersSheet> {
                             title: Text(u['nickname'] as String? ?? ''),
                             trailing: TextButton(
                               onPressed: () =>
-                                  _unblock(u['blockedId'] as int),
+                                  _unblock(u['blockedUserId'] as int),
                               child: const Text('차단 해제',
                                   style: TextStyle(color: Colors.red)),
                             ),
