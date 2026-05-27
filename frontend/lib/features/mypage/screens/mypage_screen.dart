@@ -175,9 +175,9 @@ class _MyGatheringsSheetState extends State<_MyGatheringsSheet> {
       final hostedRes = await client.dio.get('/api/gatherings/my/hosted');
       final joinedRes = await client.dio.get('/api/gatherings/my/joined');
       final hosted = ((hostedRes.data as Map<String, dynamic>)['data'] as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>).toList();
+          .map((e) => {...e as Map<String, dynamic>, 'isHosted': true}).toList();
       final joined = ((joinedRes.data as Map<String, dynamic>)['data'] as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>).toList();
+          .map((e) => {...e as Map<String, dynamic>, 'isHosted': false}).toList();
       final seen = <int>{};
       setState(() {
         _gatherings = [...hosted, ...joined]
@@ -224,16 +224,34 @@ class _MyGatheringsSheetState extends State<_MyGatheringsSheet> {
                             const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final g = _gatherings[i];
+                          final isHosted = g['isHosted'] as bool? ?? false;
                           return ListTile(
                             title: Text(g['title'] as String? ?? ''),
                             subtitle: Text(g['restaurantName'] as String? ?? ''),
-                            trailing: Text(
-                              g['status'] as String? ?? '',
-                              style: TextStyle(
-                                color: g['status'] == 'OPEN'
-                                    ? const Color(0xFF03C75A)
-                                    : Colors.grey,
-                              ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  g['status'] as String? ?? '',
+                                  style: TextStyle(
+                                    color: g['status'] == 'OPEN'
+                                        ? const Color(0xFF03C75A)
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                if (isHosted) ...[
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 18, color: Color(0xFF03C75A)),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      context.push('/gathering/${g['id']}/edit');
+                                    },
+                                  ),
+                                ],
+                              ],
                             ),
                             onTap: () {
                               Navigator.pop(context);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
@@ -19,6 +20,55 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   LatLng _mapCenter = LatLng(37.5665, 126.9780);
   bool _centerMoved = false;
   Set<Marker> _markers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    if (permission == LocationPermission.deniedForever) return;
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+      ref.read(nearbyCoordsProvider.notifier).set(pos.latitude, pos.longitude, radius: 5.0);
+      setState(() => _mapCenter = LatLng(pos.latitude, pos.longitude));
+      _mapController?.panTo(LatLng(pos.latitude, pos.longitude));
+    } catch (_) {}
+  }
+
+  Future<void> _resetToMyLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.always && permission != LocationPermission.whileInUse) return;
+    }
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+      ref.read(nearbyCoordsProvider.notifier).set(pos.latitude, pos.longitude, radius: 5.0);
+      setState(() {
+        _mapCenter = LatLng(pos.latitude, pos.longitude);
+        _centerMoved = false;
+        _selectedGathering = null;
+      });
+      _mapController?.panTo(LatLng(pos.latitude, pos.longitude));
+    } catch (_) {}
+  }
 
   void _updateMarkers(List<GatheringModel> gatherings) {
     if (!mounted) return;
@@ -41,8 +91,79 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   void _researchHere() {
-    ref.read(nearbyCoordsProvider.notifier).set(_mapCenter.latitude, _mapCenter.longitude);
+    ref.read(nearbyCoordsProvider.notifier).set(_mapCenter.latitude, _mapCenter.longitude, radius: 5.0);
     setState(() => _centerMoved = false);
+  }
+
+  void _showSearchModal() {
+    final coords = ref.read(nearbyCoordsProvider);
+    final controller = TextEditingController(text: coords?.keyword ?? '');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('모임 검색', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('식당명 또는 모임 제목으로 진행중인 모임을 찾아보세요',
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: '예: 삼겹살, 파스타, 혼밥',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF03C75A)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF03C75A), width: 2),
+                ),
+              ),
+              textInputAction: TextInputAction.search,
+              onSubmitted: (value) => _doSearch(value, ctx),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _doSearch(controller.text, ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF03C75A),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text('검색', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _doSearch(String value, BuildContext sheetContext) {
+    Navigator.of(sheetContext).pop();
+    final coords = ref.read(nearbyCoordsProvider);
+    if (coords == null) return;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      ref.read(nearbyCoordsProvider.notifier).set(coords.lat, coords.lng, radius: coords.radius);
+    } else {
+      ref.read(nearbyCoordsProvider.notifier).setWithKeyword(coords.lat, coords.lng, trimmed, radius: coords.radius);
+    }
   }
 
   @override
@@ -135,16 +256,42 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   '모임 탐색',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                if (coords?.keyword != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF03C75A).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          coords!.keyword!,
+                          style: const TextStyle(
+                              color: Color(0xFF03C75A), fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () => ref.read(nearbyCoordsProvider.notifier)
+                              .set(coords.lat, coords.lng, radius: coords.radius),
+                          child: const Icon(Icons.close, size: 14, color: Color(0xFF03C75A)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 gatheringsAsync.when(
                   data: (list) => Text('${list.length}개', style: const TextStyle(color: Colors.grey)),
                   loading: () => const SizedBox.shrink(),
-                  error: (_, s) => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(Icons.search, size: 22, color: Colors.black54),
-                  onPressed: () {},
+                  onPressed: _showSearchModal,
                   padding: const EdgeInsets.all(8),
                   constraints: const BoxConstraints(),
                 ),
@@ -182,7 +329,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         },
                       ),
 
-                      // 이 위치로 재검색 button
+                      // 이 위치로 재검색 (appears when map is panned)
                       if (_centerMoved)
                         Positioned(
                           top: 16,
@@ -224,20 +371,65 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           ),
                         ),
 
-                      // 내 위치로 이동 버튼
+                      // My location FAB
                       Positioned(
                         right: 12,
-                        bottom: _selectedGathering != null ? 220 : 16,
+                        bottom: _selectedGathering != null ? 220 : 76,
                         child: FloatingActionButton.small(
                           heroTag: 'myLocation',
                           backgroundColor: Colors.white,
                           onPressed: () {
                             _mapController?.panTo(LatLng(coords.lat, coords.lng));
-                            setState(() { _centerMoved = false; _selectedGathering = null; });
+                            setState(() {
+                              _centerMoved = false;
+                              _selectedGathering = null;
+                            });
                           },
                           child: const Icon(Icons.my_location, color: Color(0xFF03C75A)),
                         ),
                       ),
+
+                      // 현재 위치로 재설정 (bottom center, always visible when no popup)
+                      if (_selectedGathering == null)
+                        Positioned(
+                          bottom: 16,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: _resetToMyLocation,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF03C75A),
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF03C75A).withValues(alpha: 0.4),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.my_location, size: 18, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      '현재 위치로 재설정',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
 
                       // Gathering popup card
                       if (_selectedGathering != null)

@@ -2,6 +2,7 @@ package com.eattogether.user.service;
 
 import com.eattogether.common.exception.BusinessException;
 import com.eattogether.common.exception.ErrorCode;
+import com.eattogether.user.domain.User;
 import com.eattogether.user.domain.UserBlock;
 import com.eattogether.user.dto.BlockedUserResponse;
 import com.eattogether.user.repository.UserBlockRepository;

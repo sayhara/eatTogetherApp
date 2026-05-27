@@ -6,6 +6,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/home/screens/main_screen.dart';
 import '../../features/gathering/screens/gathering_detail_screen.dart';
 import '../../features/gathering/screens/gathering_create_screen.dart';
+import '../../features/gathering/screens/gathering_edit_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
 import '../../features/review/screens/review_screen.dart';
 import '../../features/mypage/screens/mypage_screen.dart';
@@ -55,6 +56,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/gathering/:id',
         builder: (context, state) => GatheringDetailScreen(
+          gatheringId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/gathering/:id/edit',
+        builder: (context, state) => GatheringEditScreen(
           gatheringId: int.parse(state.pathParameters['id']!),
         ),
       ),

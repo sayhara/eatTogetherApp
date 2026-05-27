@@ -3,14 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/gathering_model.dart';
 
-typedef NearbyCoords = ({double lat, double lng, double radius});
+typedef NearbyCoords = ({double lat, double lng, double radius, String? keyword});
 
 class NearbyCoordsNotifier extends Notifier<NearbyCoords?> {
   @override
   NearbyCoords? build() => null;
 
-  void set(double lat, double lng, {double radius = 2.0}) {
-    state = (lat: lat, lng: lng, radius: radius);
+  void set(double lat, double lng, {double radius = 5.0}) {
+    state = (lat: lat, lng: lng, radius: radius, keyword: null);
+  }
+
+  void setWithKeyword(double lat, double lng, String keyword, {double radius = 5.0}) {
+    state = (lat: lat, lng: lng, radius: radius, keyword: keyword.isEmpty ? null : keyword);
   }
 }
 
@@ -20,13 +24,17 @@ final nearbyCoordsProvider =
 final nearbyGatheringsProvider = FutureProvider.autoDispose<List<GatheringModel>>((ref) async {
   final coords = ref.watch(nearbyCoordsProvider);
   if (coords == null) return [];
-  debugPrint('[NEARBY] fetching lat=${coords.lat}, lng=${coords.lng}');
+  debugPrint('[NEARBY] fetching lat=${coords.lat}, lng=${coords.lng}, keyword=${coords.keyword}');
   final client = ref.read(apiClientProvider);
-  final res = await client.dio.get('/api/gatherings/nearby', queryParameters: {
+  final queryParams = <String, dynamic>{
     'latitude': coords.lat,
     'longitude': coords.lng,
     'radius': coords.radius,
-  });
+  };
+  if (coords.keyword != null && coords.keyword!.isNotEmpty) {
+    queryParams['keyword'] = coords.keyword;
+  }
+  final res = await client.dio.get('/api/gatherings/nearby', queryParameters: queryParams);
   debugPrint('[NEARBY] status=${res.statusCode}, data=${res.data}');
   final list = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
   debugPrint('[NEARBY] parsed ${list.length} gatherings');
