@@ -34,8 +34,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(chatMessagesProvider.notifier).clear();
-    _loadHistoryAndConnect();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(chatMessagesProvider.notifier).clear();
+      _loadHistoryAndConnect();
+    });
   }
 
   Future<void> _loadHistoryAndConnect() async {

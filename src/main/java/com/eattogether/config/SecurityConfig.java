@@ -5,6 +5,7 @@ import com.eattogether.security.jwt.JwtTokenProvider;
 import com.eattogether.security.oauth2.CustomOAuth2UserService;
 import com.eattogether.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.eattogether.security.oauth2.OAuth2AuthenticationSuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -52,6 +53,10 @@ public class SecurityConfig {
                         .userInfoEndpoint(ui -> ui.userService(customOAuth2UserService))
                         .successHandler(successHandler)
                         .failureHandler(failureHandler)
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, e) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
                         UsernamePasswordAuthenticationFilter.class)
