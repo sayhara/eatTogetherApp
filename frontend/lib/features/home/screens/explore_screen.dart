@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:kakao_map_plugin/kakao_map_plugin.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
 
@@ -15,11 +13,10 @@ class ExploreScreen extends ConsumerStatefulWidget {
 }
 
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
-  KakaoMapController? _mapController;
+  NaverMapController? _mapController;
   GatheringModel? _selectedGathering;
-  LatLng _mapCenter = LatLng(37.5665, 126.9780);
+  NLatLng _mapCenter = const NLatLng(37.5665, 126.9780);
   bool _centerMoved = false;
-  Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -44,8 +41,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       );
       if (!mounted) return;
       ref.read(nearbyCoordsProvider.notifier).set(pos.latitude, pos.longitude, radius: 5.0);
-      setState(() => _mapCenter = LatLng(pos.latitude, pos.longitude));
-      _mapController?.panTo(LatLng(pos.latitude, pos.longitude));
+      setState(() => _mapCenter = NLatLng(pos.latitude, pos.longitude));
+      _mapController?.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(target: NLatLng(pos.latitude, pos.longitude)),
+      );
     } catch (_) {}
   }
 
@@ -62,32 +61,45 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       if (!mounted) return;
       ref.read(nearbyCoordsProvider.notifier).set(pos.latitude, pos.longitude, radius: 5.0);
       setState(() {
-        _mapCenter = LatLng(pos.latitude, pos.longitude);
+        _mapCenter = NLatLng(pos.latitude, pos.longitude);
         _centerMoved = false;
         _selectedGathering = null;
       });
-      _mapController?.panTo(LatLng(pos.latitude, pos.longitude));
+      _mapController?.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(target: NLatLng(pos.latitude, pos.longitude)),
+      );
     } catch (_) {}
   }
 
-  void _updateMarkers(List<GatheringModel> gatherings) {
-    if (!mounted) return;
-    setState(() {
-      _markers = gatherings.map((g) => Marker(
-        markerId: g.id.toString(),
-        latLng: LatLng(g.latitude, g.longitude),
-      )).toSet();
-    });
+  Future<void> _updateMarkers(List<GatheringModel> gatherings) async {
+    if (!mounted || _mapController == null) return;
+    await _mapController!.clearOverlays();
+    final newMarkers = gatherings.map((g) {
+      final marker = NMarker(
+        id: g.id.toString(),
+        position: NLatLng(g.latitude, g.longitude),
+      );
+      marker.setOnTapListener((m) {
+        setState(() => _selectedGathering = g);
+      });
+      return marker;
+    }).toList();
+    await _mapController!.addOverlayAll(newMarkers.toSet());
   }
 
-  void _onCameraIdle(LatLng center, int zoom) {
+  Future<void> _onCameraIdle() async {
+    if (_mapController == null) return;
+    final position = await _mapController!.getCameraPosition();
     final coords = ref.read(nearbyCoordsProvider);
     if (coords == null) return;
-    final dist = (center.latitude - coords.lat).abs() + (center.longitude - coords.lng).abs();
-    setState(() {
-      _mapCenter = center;
-      _centerMoved = dist > 0.005;
-    });
+    final dist = (position.target.latitude - coords.lat).abs() +
+        (position.target.longitude - coords.lng).abs();
+    if (mounted) {
+      setState(() {
+        _mapCenter = position.target;
+        _centerMoved = dist > 0.005;
+      });
+    }
   }
 
   void _researchHere() {
@@ -171,7 +183,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     super.didChangeDependencies();
     final coords = ref.read(nearbyCoordsProvider);
     if (coords != null && _mapCenter.latitude == 37.5665 && _mapCenter.longitude == 126.9780) {
-      _mapCenter = LatLng(coords.lat, coords.lng);
+      _mapCenter = NLatLng(coords.lat, coords.lng);
     }
   }
 
@@ -186,13 +198,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       next.whenData(_updateMarkers);
     });
 
-    final timeStr = DateFormat('H:mm').format(DateTime.now());
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
-          // Hero Header
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -218,36 +227,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Text(
-                          timeStr,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const Spacer(),
-                        Transform.scale(
-                          scale: 0.85,
-                          child: Switch(
-                            value: coords != null,
-                            onChanged: (_) {},
-                            activeThumbColor: const Color(0xFF03C75A),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
             ),
           ),
 
-          // Section header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
             child: Row(
@@ -305,145 +290,152 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
             ),
           ),
 
-          // Map area
           Expanded(
-            child: coords == null
-                ? const _LocationLoadingView()
-                : Stack(
-                    children: [
-                      KakaoMap(
-                        center: _mapCenter,
-                        markers: _markers.toList(),
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                          controller.panTo(LatLng(coords.lat, coords.lng));
-                        },
-                        onCameraIdle: _onCameraIdle,
-                        onMarkerTap: (markerId, latLng, zoom) {
-                          final gatherings = ref.read(nearbyGatheringsProvider).value ?? [];
-                          final gathering = gatherings.firstWhere(
-                            (g) => g.id.toString() == markerId,
-                            orElse: () => gatherings.first,
-                          );
-                          setState(() => _selectedGathering = gathering);
-                        },
-                      ),
-
-                      // 이 위치로 재검색 (appears when map is panned)
-                      if (_centerMoved)
-                        Positioned(
-                          top: 16,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _researchHere,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.refresh, size: 16, color: Colors.black54),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      '이 위치로 재검색',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // My location FAB
-                      Positioned(
-                        right: 12,
-                        bottom: _selectedGathering != null ? 220 : 76,
-                        child: FloatingActionButton.small(
-                          heroTag: 'myLocation',
-                          backgroundColor: Colors.white,
-                          onPressed: () {
-                            _mapController?.panTo(LatLng(coords.lat, coords.lng));
-                            setState(() {
-                              _centerMoved = false;
-                              _selectedGathering = null;
-                            });
-                          },
-                          child: const Icon(Icons.my_location, color: Color(0xFF03C75A)),
-                        ),
-                      ),
-
-                      // 현재 위치로 재설정 (bottom center, always visible when no popup)
-                      if (_selectedGathering == null)
-                        Positioned(
-                          bottom: 16,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _resetToMyLocation,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF03C75A),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF03C75A).withValues(alpha: 0.4),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.my_location, size: 18, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      '현재 위치로 재설정',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Gathering popup card
-                      if (_selectedGathering != null)
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: _GatheringPopupCard(
-                            gathering: _selectedGathering!,
-                            onClose: () => setState(() => _selectedGathering = null),
-                          ),
-                        ),
-                    ],
+            child: Stack(
+              children: [
+                NaverMap(
+                  options: NaverMapViewOptions(
+                    initialCameraPosition: NCameraPosition(
+                      target: _mapCenter,
+                      zoom: 14,
+                    ),
+                    mapType: NMapType.basic,
+                    activeLayerGroups: const [NLayerGroup.building, NLayerGroup.transit],
+                    locationButtonEnable: false,
                   ),
+                  onMapReady: (controller) async {
+                    _mapController = controller;
+                    final coords = ref.read(nearbyCoordsProvider);
+                    if (coords != null) {
+                      await controller.updateCamera(
+                        NCameraUpdate.scrollAndZoomTo(
+                          target: NLatLng(coords.lat, coords.lng),
+                        ),
+                      );
+                    }
+                    final gatherings = ref.read(nearbyGatheringsProvider).value ?? [];
+                    if (gatherings.isNotEmpty) _updateMarkers(gatherings);
+                  },
+                  onCameraIdle: () => _onCameraIdle(),
+                ),
+
+                if (_centerMoved)
+                  Positioned(
+                    top: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: _researchHere,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.refresh, size: 16, color: Colors.black54),
+                              SizedBox(width: 6),
+                              Text(
+                                '이 위치로 재검색',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                Positioned(
+                  right: 12,
+                  bottom: _selectedGathering != null ? 220 : 76,
+                  child: FloatingActionButton.small(
+                    heroTag: 'myLocation',
+                    backgroundColor: Colors.white,
+                    onPressed: () {
+                      if (coords != null) {
+                        _mapController?.updateCamera(
+                          NCameraUpdate.scrollAndZoomTo(
+                            target: NLatLng(coords.lat, coords.lng),
+                          ),
+                        );
+                      }
+                      setState(() {
+                        _centerMoved = false;
+                        _selectedGathering = null;
+                      });
+                    },
+                    child: const Icon(Icons.my_location, color: Color(0xFF03C75A)),
+                  ),
+                ),
+
+                if (_selectedGathering == null)
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: _resetToMyLocation,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF03C75A),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF03C75A).withValues(alpha: 0.4),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.my_location, size: 18, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                '현재 위치로 재설정',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (_selectedGathering != null)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _GatheringBottomCard(
+                      gathering: _selectedGathering!,
+                      onClose: () => setState(() => _selectedGathering = null),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -451,44 +443,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 }
 
-class _LocationLoadingView extends StatelessWidget {
-  const _LocationLoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: Color(0xFF03C75A)),
-          SizedBox(height: 16),
-          Text(
-            '내 위치를 확인하는 중...',
-            style: TextStyle(color: Colors.grey, fontSize: 15),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GatheringPopupCard extends StatelessWidget {
+class _GatheringBottomCard extends StatelessWidget {
   final GatheringModel gathering;
   final VoidCallback onClose;
-  const _GatheringPopupCard({required this.gathering, required this.onClose});
 
-  String _formatTime(DateTime dt) {
-    final ampm = dt.hour < 12 ? '오전' : '오후';
-    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '${dt.month}월 ${dt.day}일 $ampm $h:$m';
-  }
+  const _GatheringBottomCard({required this.gathering, required this.onClose});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -496,73 +461,54 @@ class _GatheringPopupCard extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 16,
-            offset: const Offset(0, -2),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
                   gathering.title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, size: 20, color: Colors.grey),
+                icon: const Icon(Icons.close, size: 20),
                 onPressed: onClose,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
+          Text(
+            gathering.restaurantName,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.calendar_today, size: 16, color: Color(0xFF5C6BC0)),
-              const SizedBox(width: 8),
+              const Icon(Icons.people, size: 16, color: Color(0xFF03C75A)),
+              const SizedBox(width: 4),
               Text(
-                _formatTime(gathering.mealTime),
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                '${gathering.currentParticipants}/${gathering.maxParticipants}명',
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(width: 12),
+              const Icon(Icons.access_time, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                '${gathering.mealTime.hour.toString().padLeft(2, '0')}:${gathering.mealTime.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.place, size: 16, color: Colors.red),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  gathering.restaurantName,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => context.push('/gathering/${gathering.id}'),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE0E0E0)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: const Text(
-                '모임 상세보기 →',
-                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
-              ),
-            ),
           ),
         ],
       ),

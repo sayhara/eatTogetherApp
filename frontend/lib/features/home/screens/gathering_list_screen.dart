@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -139,8 +138,6 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
             ? const AsyncData<List<GatheringModel>>([])
             : const AsyncValue<List<GatheringModel>>.loading();
 
-    final timeStr = DateFormat('H:mm').format(DateTime.now());
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
@@ -170,29 +167,6 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
                         color: Colors.black87,
                         height: 1.35,
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Text(
-                          timeStr,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const Spacer(),
-                        Transform.scale(
-                          scale: 0.85,
-                          child: Switch(
-                            value: coords != null,
-                            onChanged: (_) {},
-                            activeThumbColor: const Color(0xFF03C75A),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),

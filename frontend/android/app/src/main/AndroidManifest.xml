@@ -16,6 +16,11 @@
             android:name="com.kakao.sdk.AppKey"
             android:value="786a477ad238fe4a2509876117d3ec0c"/>
 
+        <!-- 네이버 지도 클라이언트 ID -->
+        <meta-data
+            android:name="com.naver.maps.map.CLIENT_ID"
+            android:value="lj90ug6jml"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -59,6 +64,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false"/>
     </application>
 
     <queries>

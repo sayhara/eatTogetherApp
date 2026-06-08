@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kakao_map_plugin/kakao_map_plugin.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../home/models/gathering_model.dart';
 import '../providers/gathering_provider.dart';
@@ -231,15 +231,24 @@ class _GatheringDetailScreenState extends ConsumerState<GatheringDetailScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: SizedBox(
                               height: 160,
-                              child: KakaoMap(
-                                center: LatLng(gathering.latitude, gathering.longitude),
-                                markers: [
-                                  Marker(
-                                    markerId: gathering.id.toString(),
-                                    latLng: LatLng(gathering.latitude, gathering.longitude),
+                              child: NaverMap(
+                                options: NaverMapViewOptions(
+                                  initialCameraPosition: NCameraPosition(
+                                    target: NLatLng(gathering.latitude, gathering.longitude),
+                                    zoom: 15,
                                   ),
-                                ],
-                                onMapCreated: (_) {},
+                                  scrollGesturesEnable: false,
+                                  zoomGesturesEnable: false,
+                                  tiltGesturesEnable: false,
+                                  rotationGesturesEnable: false,
+                                ),
+                                onMapReady: (controller) async {
+                                  final marker = NMarker(
+                                    id: gathering.id.toString(),
+                                    position: NLatLng(gathering.latitude, gathering.longitude),
+                                  );
+                                  await controller.addOverlay(marker);
+                                },
                               ),
                             ),
                           ),

@@ -29,8 +29,8 @@ dependencies:
   # URL 실행 (소셜 로그인 브라우저)
   url_launcher: ^6.3.2
 
-  # 카카오맵
-  kakao_map_plugin: ^0.4.0
+  # 네이버 지도
+  flutter_naver_map: ^1.2.1
 
   # 위치
   geolocator: ^14.0.2

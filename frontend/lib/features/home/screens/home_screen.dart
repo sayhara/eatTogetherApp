@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:kakao_map_plugin/kakao_map_plugin.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -15,10 +15,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  KakaoMapController? _mapController;
+  NaverMapController? _mapController;
   Position? _currentPosition;
   bool _locationDone = false;
-  Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -82,28 +81,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
   }
 
-  void _updateMarkers(List<GatheringModel> gatherings) {
-    setState(() {
-      _markers = gatherings
-          .map((g) => Marker(
-                markerId: g.id.toString(),
-                latLng: LatLng(g.latitude, g.longitude),
-                markerImageSrc:
-                    'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png',
-              ))
-          .toSet();
-    });
-
-    for (final g in gatherings) {
-      _mapController?.addMarker(
-        markers: [
-          Marker(
-            markerId: g.id.toString(),
-            latLng: LatLng(g.latitude, g.longitude),
-          )
-        ],
-      );
-    }
+  Future<void> _updateMarkers(List<GatheringModel> gatherings) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    await controller.clearOverlays();
+    final overlays = gatherings.map((g) => NMarker(
+          id: g.id.toString(),
+          position: NLatLng(g.latitude, g.longitude),
+        ));
+    await controller.addOverlayAll(overlays.toSet());
   }
 
   @override
@@ -138,26 +124,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: Stack(
         children: [
-          KakaoMap(
-            onMapCreated: (controller) {
+          NaverMap(
+            options: NaverMapViewOptions(
+              initialCameraPosition: NCameraPosition(
+                target: NLatLng(defaultLat, defaultLng),
+                zoom: 14,
+              ),
+            ),
+            onMapReady: (controller) async {
               _mapController = controller;
               if (_currentPosition != null) {
-                controller.panTo(LatLng(
-                  _currentPosition!.latitude,
-                  _currentPosition!.longitude,
-                ));
+                await controller.updateCamera(
+                  NCameraUpdate.scrollAndZoomTo(
+                    target: NLatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                    zoom: 14,
+                  ),
+                );
               }
-            },
-            center: LatLng(defaultLat, defaultLng),
-            markers: _markers.toList(),
-            onMarkerTap: (markerId, latLng, zoomLevel) {
-              final gathering = gatheringsAsync.value?.firstWhere(
-                (g) => g.id.toString() == markerId,
-                orElse: () => gatheringsAsync.value!.first,
-              );
-              if (gathering != null) {
-                ref.read(selectedGatheringProvider.notifier).select(gathering);
-              }
+              final gatherings = gatheringsAsync.value;
+              if (gatherings != null) await _updateMarkers(gatherings);
             },
           ),
           _GatheringBottomSheet(
