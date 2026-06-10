@@ -57,8 +57,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       config: StompConfig(
         url: '${AppConstants.baseUrl.replaceFirst('http', 'ws')}/ws',
         onConnect: _onConnected,
-        onStompError: (frame) {},
+        onStompError: (frame) => debugPrint('[STOMP] error: ${frame.body}'),
+        onWebSocketError: (e) => debugPrint('[STOMP] ws error: $e'),
         onDisconnect: (_) {
+          debugPrint('[STOMP] disconnected');
           if (mounted) setState(() => _connected = false);
         },
         stompConnectHeaders: {'Authorization': 'Bearer $token'},

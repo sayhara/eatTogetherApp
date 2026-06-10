@@ -202,41 +202,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFFD600), Color(0xFFFFC107)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '내 주변 모임 📍\n지도로 간편하게 확인',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-            child: Row(
-              children: [
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+              child: Row(
+                children: [
                 const Text(
                   '모임 탐색',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -286,7 +257,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   padding: const EdgeInsets.all(8),
                   constraints: const BoxConstraints(),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
 
