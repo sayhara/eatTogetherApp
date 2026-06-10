@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -37,7 +38,10 @@ public class StompChannelInterceptor implements ChannelInterceptor {
                     log.debug("WebSocket authenticated: userId={}", auth.getName());
                 } else {
                     log.warn("WebSocket CONNECT with invalid token");
+                    throw new MessagingException("Invalid or expired token");
                 }
+            } else {
+                throw new MessagingException("Missing Authorization header");
             }
         }
         return message;

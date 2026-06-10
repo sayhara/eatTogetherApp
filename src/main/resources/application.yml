@@ -65,7 +65,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:your-secret-key-must-be-at-least-32-characters-long-here}
-  access-token-expire: 3600000      # 1시간
+  access-token-expire: 86400000     # 24시간
   refresh-token-expire: 1209600000  # 14일
 
 app:

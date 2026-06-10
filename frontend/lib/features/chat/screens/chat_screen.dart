@@ -52,17 +52,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _connectStomp() async {
+    // HTTP call to refresh token if expired before connecting
+    try {
+      await ref.read(apiClientProvider).dio.get('/api/users/me');
+    } catch (_) {}
+
     final token = await ref.read(tokenStorageProvider).getAccessToken();
     _stompClient = StompClient(
       config: StompConfig(
         url: '${AppConstants.baseUrl.replaceFirst('http', 'ws')}/ws',
         onConnect: _onConnected,
-        onStompError: (frame) => debugPrint('[STOMP] error: ${frame.body}'),
+        onStompError: (frame) {
+          debugPrint('[STOMP] error: ${frame.body}');
+          if (mounted) {
+            setState(() => _connected = false);
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted && !_connected) {
+                _stompClient?.deactivate();
+                _connectStomp();
+              }
+            });
+          }
+        },
         onWebSocketError: (e) => debugPrint('[STOMP] ws error: $e'),
         onDisconnect: (_) {
           debugPrint('[STOMP] disconnected');
-          if (mounted) setState(() => _connected = false);
+          if (mounted) {
+            setState(() => _connected = false);
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted && !_connected) {
+                _stompClient?.deactivate();
+                _connectStomp();
+              }
+            });
+          }
         },
+        reconnectDelay: Duration.zero,
         stompConnectHeaders: {'Authorization': 'Bearer $token'},
         webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
       ),

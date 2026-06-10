@@ -2,6 +2,8 @@ package com.eattogether.chat.dto;
 
 import com.eattogether.chat.domain.ChatMessage;
 import com.eattogether.chat.domain.MessageType;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
+@JsonDeserialize(builder = ChatMessageResponse.ChatMessageResponseBuilder.class)
 public class ChatMessageResponse {
     private Long id;
     private Long gatheringId;
@@ -40,5 +43,9 @@ public class ChatMessageResponse {
                 .type(type)
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    @JsonPOJOBuilder(withPrefix = "")
+    public static class ChatMessageResponseBuilder {
     }
 }
