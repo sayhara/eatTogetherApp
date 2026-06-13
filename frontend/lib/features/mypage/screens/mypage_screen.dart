@@ -34,9 +34,9 @@ class MyPageScreen extends ConsumerWidget {
                   onTap: () => _showBlockedUsers(context, ref),
                 ),
                 _MenuTile(
-                  icon: Icons.notifications,
-                  label: '알림 설정',
-                  onTap: () {},
+                  icon: Icons.manage_accounts,
+                  label: '계정 관리',
+                  onTap: () => context.push('/settings'),
                 ),
                 const Divider(height: 1),
                 _MenuTile(

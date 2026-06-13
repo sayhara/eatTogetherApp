@@ -72,6 +72,10 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
     state = const AsyncData(null);
   }
 
+  Future<void> refreshUser() async {
+    state = await AsyncValue.guard(() => _loadUser());
+  }
+
   Future<void> updateLocation({
     required double latitude,
     required double longitude,

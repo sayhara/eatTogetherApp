@@ -2,6 +2,7 @@ package com.eattogether.user.controller;
 
 import com.eattogether.common.response.ApiResponse;
 import com.eattogether.user.dto.LocationUpdateRequest;
+import com.eattogether.user.dto.NotificationUpdateRequest;
 import com.eattogether.user.dto.UserProfileResponse;
 import com.eattogether.user.dto.UserUpdateRequest;
 import com.eattogether.user.service.UserService;
@@ -37,6 +38,20 @@ public class UserController {
             @Valid @RequestBody LocationUpdateRequest request) {
         userService.updateLocation(userId(userDetails), request);
         return ApiResponse.ok(null);
+    }
+
+    @PatchMapping("/me/notification")
+    public ApiResponse<UserProfileResponse> updateNotification(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody NotificationUpdateRequest request) {
+        return ApiResponse.ok(userService.updateNotification(userId(userDetails), request));
+    }
+
+    @GetMapping("/nickname/check")
+    public ApiResponse<Boolean> checkNickname(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam String nickname) {
+        return ApiResponse.ok(userService.isNicknameAvailable(userId(userDetails), nickname));
     }
 
     private Long userId(UserDetails userDetails) {

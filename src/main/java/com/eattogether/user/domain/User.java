@@ -42,6 +42,10 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean notificationEnabled = true;
+
     // 앱 실행 시 업데이트되는 마지막 위치
     private Double latitude;
     private Double longitude;
@@ -65,5 +69,9 @@ public class User {
     public void updateLocation(Double latitude, Double longitude) {
         this.latitude = latitude;
         this.longitude = longitude;
+    }
+
+    public void updateNotification(boolean enabled) {
+        this.notificationEnabled = enabled;
     }
 }

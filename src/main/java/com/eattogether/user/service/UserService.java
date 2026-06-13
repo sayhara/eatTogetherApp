@@ -4,6 +4,7 @@ import com.eattogether.common.exception.BusinessException;
 import com.eattogether.common.exception.ErrorCode;
 import com.eattogether.user.domain.User;
 import com.eattogether.user.dto.LocationUpdateRequest;
+import com.eattogether.user.dto.NotificationUpdateRequest;
 import com.eattogether.user.dto.UserProfileResponse;
 import com.eattogether.user.dto.UserUpdateRequest;
 import com.eattogether.review.repository.ReviewRepository;
@@ -39,6 +40,17 @@ public class UserService {
     @Transactional
     public void updateLocation(Long userId, LocationUpdateRequest request) {
         findById(userId).updateLocation(request.getLatitude(), request.getLongitude());
+    }
+
+    @Transactional
+    public UserProfileResponse updateNotification(Long userId, NotificationUpdateRequest request) {
+        User user = findById(userId);
+        user.updateNotification(request.getEnabled());
+        return UserProfileResponse.from(user);
+    }
+
+    public boolean isNicknameAvailable(Long userId, String nickname) {
+        return !userRepository.existsByNicknameAndIdNot(nickname, userId);
     }
 
     private User findById(Long userId) {

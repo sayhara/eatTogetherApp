@@ -13,6 +13,7 @@ public class UserProfileResponse {
     private String profileImageUrl;
     private String provider;
     private Double averageRating;
+    private boolean notificationEnabled;
 
     public static UserProfileResponse from(User user) {
         return from(user, 0.0);
@@ -26,6 +27,7 @@ public class UserProfileResponse {
                 .profileImageUrl(user.getProfileImageUrl())
                 .provider(user.getProvider().name().toLowerCase())
                 .averageRating(averageRating)
+                .notificationEnabled(user.isNotificationEnabled())
                 .build();
     }
 }

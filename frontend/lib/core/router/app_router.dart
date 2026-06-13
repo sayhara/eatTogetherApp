@@ -10,6 +10,7 @@ import '../../features/gathering/screens/gathering_edit_screen.dart';
 import '../../features/chat/screens/chat_screen.dart';
 import '../../features/review/screens/review_screen.dart';
 import '../../features/mypage/screens/mypage_screen.dart';
+import '../../features/mypage/screens/account_settings_screen.dart';
 
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(this._ref) {
@@ -81,6 +82,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/mypage',
         builder: (context, _) => const MyPageScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, _) => const AccountSettingsScreen(),
       ),
     ],
   );
