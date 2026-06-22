@@ -1,7 +1,8 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class LocationResult {
   final String name;
@@ -17,19 +18,19 @@ class LocationResult {
   });
 }
 
-class LocationPickerScreen extends StatefulWidget {
+class LocationPickerScreen extends ConsumerStatefulWidget {
   const LocationPickerScreen({super.key});
 
   @override
-  State<LocationPickerScreen> createState() => _LocationPickerScreenState();
+  ConsumerState<LocationPickerScreen> createState() => _LocationPickerScreenState();
 }
 
-class _LocationPickerScreenState extends State<LocationPickerScreen>
+class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   final _searchCtrl = TextEditingController();
-  List<Map<String, dynamic>> _results = [];
+  List<LocationResult> _results = [];
   bool _searching = false;
   String? _searchError;
 
@@ -39,8 +40,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen>
   double _lat = 37.5665;
   double _lng = 126.9780;
 
-  // 행정안전부 도로명주소 API 키 (juso.go.kr 에서 발급)
-  static const _jusoKey = 'devU01TX0FVVEgyMDE3MDcxOTE0MDkxMTExNDYzMTI=';
   static const _orange = Color(0xFFF5A623);
 
   @override
@@ -77,31 +76,31 @@ class _LocationPickerScreenState extends State<LocationPickerScreen>
     if (kw.isEmpty) return;
     setState(() { _searching = true; _searchError = null; _results = []; });
     try {
-      final res = await Dio().get(
-        'https://business.juso.go.kr/addrlink/addrLinkApi.do',
-        queryParameters: {
-          'currentPage': 1,
-          'countPerPage': 20,
-          'keyword': kw,
-          'confmKey': _jusoKey,
-          'resultType': 'json',
-        },
+      final client = ref.read(apiClientProvider);
+      final res = await client.dio.get(
+        '/api/location/search',
+        queryParameters: {'keyword': kw},
       );
-      final raw = res.data['results']['juso'];
+      final raw = res.data['data'] as List?;
       setState(() {
-        _results = (raw as List?)?.cast<Map<String, dynamic>>() ?? [];
+        _results = raw
+            ?.map((d) => LocationResult(
+                  name: d['name'] as String? ?? '',
+                  address: d['address'] as String? ?? '',
+                  latitude: (d['latitude'] as num?)?.toDouble(),
+                  longitude: (d['longitude'] as num?)?.toDouble(),
+                ))
+            .toList() ?? [];
       });
-    } catch (_) {
-      setState(() { _searchError = '검색 중 오류가 발생했습니다'; });
+    } catch (e) {
+      setState(() { _searchError = '검색 실패: $e'; });
     } finally {
       if (mounted) setState(() => _searching = false);
     }
   }
 
-  void _pick(String name, String address, [double? lat, double? lng]) {
-    Navigator.of(context).pop(
-      LocationResult(name: name, address: address, latitude: lat, longitude: lng),
-    );
+  void _pick(LocationResult result) {
+    Navigator.of(context).pop(result);
   }
 
   void _confirmDirect() {
@@ -113,7 +112,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen>
       );
       return;
     }
-    _pick(name, addr, _lat, _lng);
+    Navigator.of(context).pop(LocationResult(
+      name: name,
+      address: addr,
+      latitude: _lat,
+      longitude: _lng,
+    ));
   }
 
   @override
@@ -185,24 +189,22 @@ class _LocationPickerScreenState extends State<LocationPickerScreen>
             child: Text(_searchError!, style: const TextStyle(color: Colors.red)),
           ),
         )
+      else if (_results.isEmpty && !_searching)
+        const Expanded(child: SizedBox())
       else
         Expanded(
           child: ListView.separated(
             itemCount: _results.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) {
-              final j = _results[i];
-              final bdNm = (j['bdNm'] as String?)?.trim() ?? '';
-              final road = (j['roadAddr'] as String?) ?? '';
-              final title = bdNm.isNotEmpty ? bdNm : road;
-              final sub = bdNm.isNotEmpty ? road : '';
+              final r = _results[i];
               return ListTile(
-                title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: sub.isNotEmpty
-                    ? Text(sub, style: TextStyle(color: Colors.grey.shade600, fontSize: 13))
+                title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: r.address.isNotEmpty
+                    ? Text(r.address, style: TextStyle(color: Colors.grey.shade600, fontSize: 13))
                     : null,
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                onTap: () => _pick(title, road),
+                onTap: () => _pick(r),
               );
             },
           ),
