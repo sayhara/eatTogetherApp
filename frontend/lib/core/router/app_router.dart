@@ -11,6 +11,7 @@ import '../../features/chat/screens/chat_screen.dart';
 import '../../features/review/screens/review_screen.dart';
 import '../../features/mypage/screens/mypage_screen.dart';
 import '../../features/mypage/screens/account_settings_screen.dart';
+import '../../features/auth/screens/nickname_setup_screen.dart';
 
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(this._ref) {
@@ -31,14 +32,22 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isLoading = authState is AsyncLoading;
-      final isLoggedIn = authState.value != null;
-      final isLoginPath = state.matchedLocation == '/login';
+      final user = authState.value;
+      final isLoggedIn = user != null;
+      final loc = state.matchedLocation;
+      final isLoginPath = loc == '/login';
+      final isNicknameSetupPath = loc == '/nickname-setup';
 
-      debugPrint('[ROUTER] redirect: loc=${state.matchedLocation}, loading=$isLoading, loggedIn=$isLoggedIn');
+      debugPrint('[ROUTER] redirect: loc=$loc, loading=$isLoading, loggedIn=$isLoggedIn, nicknameSet=${user?.nicknameSet}');
 
       if (isLoading) return null;
       if (!isLoggedIn && !isLoginPath) return '/login';
-      if (isLoggedIn && isLoginPath) return '/';
+      if (isLoggedIn && isLoginPath) {
+        return (user.nicknameSet) ? '/' : '/nickname-setup';
+      }
+      if (isLoggedIn && !user.nicknameSet && !isNicknameSetupPath) {
+        return '/nickname-setup';
+      }
       return null;
     },
     routes: [

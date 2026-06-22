@@ -49,9 +49,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = userRepository.findByProviderAndProviderId(provider, userInfo.getProviderId())
                 .orElseGet(() -> {
                     isNewUser.set(true);
+                    String tempNickname = "user_" + userInfo.getProviderId().substring(0, Math.min(8, userInfo.getProviderId().length()));
                     return userRepository.save(User.builder()
                             .email(userInfo.getEmail())
-                            .nickname(userInfo.getName())
+                            .nickname(tempNickname)
                             .profileImageUrl(userInfo.getProfileImageUrl())
                             .provider(provider)
                             .providerId(userInfo.getProviderId())
@@ -60,7 +61,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 });
 
         if (!isNewUser.get()) {
-            user.updateProfile(userInfo.getName(), userInfo.getProfileImageUrl());
+            user.updateProfileImage(userInfo.getProfileImageUrl());
         }
 
         return new CustomOAuth2User(

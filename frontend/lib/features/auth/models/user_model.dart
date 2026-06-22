@@ -7,6 +7,7 @@ class UserModel {
   final double? latitude;
   final double? longitude;
   final bool notificationEnabled;
+  final bool nicknameSet;
 
   const UserModel({
     required this.id,
@@ -17,6 +18,7 @@ class UserModel {
     this.latitude,
     this.longitude,
     this.notificationEnabled = true,
+    this.nicknameSet = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -28,11 +30,13 @@ class UserModel {
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
         notificationEnabled: json['notificationEnabled'] as bool? ?? true,
+        nicknameSet: json['nicknameSet'] as bool? ?? true,
       );
 
   UserModel copyWith({
     String? nickname,
     bool? notificationEnabled,
+    bool? nicknameSet,
   }) =>
       UserModel(
         id: id,
@@ -43,5 +47,6 @@ class UserModel {
         latitude: latitude,
         longitude: longitude,
         notificationEnabled: notificationEnabled ?? this.notificationEnabled,
+        nicknameSet: nicknameSet ?? this.nicknameSet,
       );
 }

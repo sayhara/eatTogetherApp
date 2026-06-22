@@ -21,10 +21,6 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authProvider).value;
-    if (user != null) {
-      _nicknameController.text = user.nickname;
-    }
   }
 
   @override
@@ -117,7 +113,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     final user = ref.watch(authProvider).value;
     if (user == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    final isNicknameChanged = _nicknameController.text.trim() != user.nickname;
+    final typed = _nicknameController.text.trim();
+    final isNicknameChanged = typed.isNotEmpty && typed != user.nickname;
 
     return Scaffold(
       appBar: AppBar(
@@ -144,7 +141,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                     controller: _nicknameController,
                     maxLength: 12,
                     decoration: InputDecoration(
-                      hintText: '2~12자 입력',
+                      hintText: user.nickname,
                       counterText: '',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       suffixIcon: _isCheckingNickname
@@ -163,7 +160,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                       if (v.trim().length >= 2) _checkNickname(v.trim());
                     },
                     validator: (v) {
-                      if (v == null || v.trim().length < 2) return '2자 이상 입력해주세요';
+                      final s = v?.trim() ?? '';
+                      if (s.isNotEmpty && s.length < 2) return '2자 이상 입력해주세요';
                       return null;
                     },
                   ),
@@ -172,7 +170,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: isNicknameChanged && _isNicknameAvailable == true && !_isSavingNickname
+                    onPressed: isNicknameChanged && (_isNicknameAvailable == true) && !_isSavingNickname
                         ? _saveNickname
                         : null,
                     style: ElevatedButton.styleFrom(

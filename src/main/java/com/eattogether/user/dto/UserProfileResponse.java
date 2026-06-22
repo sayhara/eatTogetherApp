@@ -14,6 +14,7 @@ public class UserProfileResponse {
     private String provider;
     private Double averageRating;
     private boolean notificationEnabled;
+    private boolean nicknameSet;
 
     public static UserProfileResponse from(User user) {
         return from(user, 0.0);
@@ -28,6 +29,7 @@ public class UserProfileResponse {
                 .provider(user.getProvider().name().toLowerCase())
                 .averageRating(averageRating)
                 .notificationEnabled(user.isNotificationEnabled())
+                .nicknameSet(user.isNicknameSet())
                 .build();
     }
 }

@@ -1,3 +1,10 @@
+logging:
+  file:
+    name: server.log
+  level:
+    org.springframework.security: DEBUG
+    com.eattogether: DEBUG
+
 spring:
   profiles:
     active: local

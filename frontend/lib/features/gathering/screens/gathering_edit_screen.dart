@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'location_picker_screen.dart';
 
 class GatheringEditScreen extends ConsumerStatefulWidget {
   final int gatheringId;
@@ -17,8 +18,7 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _restaurantController = TextEditingController();
-  final _addressController = TextEditingController();
+  LocationResult? _selectedLocation;
   DateTime? _mealTime;
   int _maxParticipants = 4;
   String? _category;
@@ -45,8 +45,6 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _restaurantController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -58,13 +56,20 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
       setState(() {
         _titleController.text = data['title'] as String? ?? '';
         _descriptionController.text = data['description'] as String? ?? '';
-        _restaurantController.text = data['restaurantName'] as String? ?? '';
-        _addressController.text = data['address'] as String? ?? '';
         _maxParticipants = data['maxParticipants'] as int? ?? 4;
         _category = _enumCategory[data['category'] as String? ?? ''];
         final mealTimeStr = data['mealTime'] as String?;
-        if (mealTimeStr != null) {
-          _mealTime = DateTime.parse(mealTimeStr);
+        if (mealTimeStr != null) _mealTime = DateTime.parse(mealTimeStr);
+
+        final name = data['restaurantName'] as String? ?? '';
+        final address = data['address'] as String? ?? '';
+        if (name.isNotEmpty) {
+          _selectedLocation = LocationResult(
+            name: name,
+            address: address,
+            latitude: (data['latitude'] as num?)?.toDouble(),
+            longitude: (data['longitude'] as num?)?.toDouble(),
+          );
         }
         _isLoading = false;
       });
@@ -98,8 +103,21 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
     });
   }
 
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.of(context).push<LocationResult>(
+      MaterialPageRoute(builder: (_) => const LocationPickerScreen()),
+    );
+    if (result != null) setState(() => _selectedLocation = result);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모임 장소를 선택해주세요')),
+      );
+      return;
+    }
     if (_mealTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('식사 시간을 선택해주세요')),
@@ -113,9 +131,8 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim().isEmpty
             ? null : _descriptionController.text.trim(),
-        'restaurantName': _restaurantController.text.trim(),
-        'address': _addressController.text.trim().isEmpty
-            ? null : _addressController.text.trim(),
+        'restaurantName': _selectedLocation!.name,
+        'address': _selectedLocation!.address.isEmpty ? null : _selectedLocation!.address,
         'category': _category != null ? _categoryEnum[_category] : null,
         'maxParticipants': _maxParticipants,
         'mealTime': _mealTime!.toIso8601String(),
@@ -163,17 +180,45 @@ class _GatheringEditScreenState extends ConsumerState<GatheringEditScreen> {
                     validator: (v) => v == null || v.trim().isEmpty ? '제목을 입력하세요' : null,
                   ),
                   const SizedBox(height: 16),
-                  _SectionLabel('식당 이름 *'),
-                  TextFormField(
-                    controller: _restaurantController,
-                    decoration: _inputDecoration('식당 이름을 입력하세요'),
-                    validator: (v) => v == null || v.trim().isEmpty ? '식당 이름을 입력하세요' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _SectionLabel('주소'),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: _inputDecoration('주소를 입력하세요 (선택)'),
+                  _SectionLabel('모임 장소 *'),
+                  GestureDetector(
+                    onTap: _openLocationPicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _selectedLocation == null
+                          ? Row(children: [
+                              Icon(Icons.location_on_outlined, color: Colors.grey.shade500),
+                              const SizedBox(width: 8),
+                              Text('위치 선택', style: TextStyle(color: Colors.grey.shade500)),
+                              const Spacer(),
+                              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                            ])
+                          : Row(children: [
+                              const Icon(Icons.location_on, color: Color(0xFF03C75A)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedLocation!.name,
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    if (_selectedLocation!.address.isNotEmpty)
+                                      Text(
+                                        _selectedLocation!.address,
+                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                            ]),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _SectionLabel('카테고리'),

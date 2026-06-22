@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../auth/providers/auth_provider.dart';
+import 'location_picker_screen.dart';
 
 class GatheringCreateScreen extends ConsumerStatefulWidget {
   const GatheringCreateScreen({super.key});
@@ -18,8 +19,7 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _restaurantController = TextEditingController();
-  final _addressController = TextEditingController();
+  LocationResult? _selectedLocation;
   DateTime? _mealTime;
   int _maxParticipants = 4;
   String? _category;
@@ -40,8 +40,6 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _restaurantController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -63,8 +61,20 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
     });
   }
 
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.of(context).push<LocationResult>(
+      MaterialPageRoute(builder: (_) => const LocationPickerScreen()),
+    );
+    if (result != null) setState(() => _selectedLocation = result);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('모임 장소를 선택해주세요')));
+      return;
+    }
     if (_mealTime == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('식사 시간을 선택해주세요')));
@@ -73,31 +83,33 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
 
     setState(() => _isLoading = true);
     try {
-      Position? position = await Geolocator.getLastKnownPosition();
-      if (position == null) {
+      double lat = _selectedLocation!.latitude ?? 37.5665;
+      double lng = _selectedLocation!.longitude ?? 126.9780;
+
+      if (_selectedLocation!.latitude == null) {
         try {
-          position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 5),
-            ),
-          );
+          Position? pos = await Geolocator.getLastKnownPosition() ??
+              await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.medium,
+                  timeLimit: Duration(seconds: 5),
+                ),
+              );
+          lat = pos.latitude;
+          lng = pos.longitude;
         } catch (_) {}
       }
 
-      debugPrint('[CREATE] lat=${position?.latitude ?? 37.5665}, lng=${position?.longitude ?? 126.9780}');
       final client = ref.read(apiClientProvider);
       final res = await client.dio.post('/api/gatherings', data: {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-        'restaurantName': _restaurantController.text.trim(),
-        'address': _addressController.text.trim().isEmpty
-            ? null
-            : _addressController.text.trim(),
-        'latitude': position?.latitude ?? 37.5665,
-        'longitude': position?.longitude ?? 126.9780,
+        'restaurantName': _selectedLocation!.name,
+        'address': _selectedLocation!.address.isEmpty ? null : _selectedLocation!.address,
+        'latitude': lat,
+        'longitude': lng,
         'category': _category != null ? _categoryEnum[_category] : null,
         'maxParticipants': _maxParticipants,
         'mealTime': _mealTime!.toIso8601String(),
@@ -145,18 +157,45 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
                   v == null || v.trim().isEmpty ? '제목을 입력하세요' : null,
             ),
             const SizedBox(height: 16),
-            _SectionLabel('식당 이름 *'),
-            TextFormField(
-              controller: _restaurantController,
-              decoration: _inputDecoration('식당 이름을 입력하세요'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? '식당 이름을 입력하세요' : null,
-            ),
-            const SizedBox(height: 16),
-            _SectionLabel('주소'),
-            TextFormField(
-              controller: _addressController,
-              decoration: _inputDecoration('주소를 입력하세요 (선택)'),
+            _SectionLabel('모임 장소 *'),
+            GestureDetector(
+              onTap: _openLocationPicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _selectedLocation == null
+                    ? Row(children: [
+                        Icon(Icons.location_on_outlined, color: Colors.grey.shade500),
+                        const SizedBox(width: 8),
+                        Text('위치 선택', style: TextStyle(color: Colors.grey.shade500)),
+                        const Spacer(),
+                        Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                      ])
+                    : Row(children: [
+                        const Icon(Icons.location_on, color: Color(0xFF03C75A)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _selectedLocation!.name,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              if (_selectedLocation!.address.isNotEmpty)
+                                Text(
+                                  _selectedLocation!.address,
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                      ]),
+              ),
             ),
             const SizedBox(height: 16),
             _SectionLabel('카테고리'),
@@ -187,8 +226,7 @@ class _GatheringCreateScreenState extends ConsumerState<GatheringCreateScreen> {
                           ? fmt.format(_mealTime!)
                           : '식사 시간을 선택하세요',
                       style: TextStyle(
-                        color:
-                            _mealTime != null ? Colors.black : Colors.grey,
+                        color: _mealTime != null ? Colors.black : Colors.grey,
                       ),
                     ),
                   ],

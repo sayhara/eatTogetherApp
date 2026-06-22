@@ -46,6 +46,10 @@ public class User {
     @Column(nullable = false)
     private boolean notificationEnabled = true;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean nicknameSet = false;
+
     // 앱 실행 시 업데이트되는 마지막 위치
     private Double latitude;
     private Double longitude;
@@ -57,13 +61,13 @@ public class User {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    public void updateProfile(String nickname, String profileImageUrl) {
-        if (nickname != null) this.nickname = nickname;
+    public void updateProfileImage(String profileImageUrl) {
         if (profileImageUrl != null) this.profileImageUrl = profileImageUrl;
     }
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+        this.nicknameSet = true;
     }
 
     public void updateLocation(Double latitude, Double longitude) {

@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN nickname_set BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE users SET nickname_set = TRUE;
