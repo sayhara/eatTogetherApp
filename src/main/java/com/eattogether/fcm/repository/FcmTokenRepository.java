@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
     Optional<FcmToken> findByUserIdAndDeviceId(Long userId, String deviceId);
+    void deleteByToken(String token);
 
     @Query("SELECT f.token FROM FcmToken f WHERE f.userId = :userId")
     List<String> findTokensByUserId(@Param("userId") Long userId);

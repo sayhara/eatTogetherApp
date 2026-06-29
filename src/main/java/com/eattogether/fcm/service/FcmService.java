@@ -24,14 +24,19 @@ public class FcmService {
 
     @Transactional
     public void registerToken(Long userId, FcmTokenRequest request) {
+        // Remove any conflicting token entry before upsert to prevent unique constraint violation
+        fcmTokenRepository.deleteByToken(request.getToken());
+        fcmTokenRepository.flush();
+
         FcmToken fcmToken = fcmTokenRepository
                 .findByUserIdAndDeviceId(userId, request.getDeviceId())
-                .orElseGet(() -> fcmTokenRepository.save(FcmToken.builder()
+                .orElseGet(() -> FcmToken.builder()
                         .userId(userId)
                         .token(request.getToken())
                         .deviceId(request.getDeviceId())
-                        .build()));
+                        .build());
         fcmToken.updateToken(request.getToken());
+        fcmTokenRepository.save(fcmToken);
     }
 
     public void sendToUser(Long userId, String title, String body) {
