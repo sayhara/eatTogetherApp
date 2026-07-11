@@ -38,6 +38,7 @@ CREATE TABLE gathering_participants (
     id           BIGSERIAL PRIMARY KEY,
     gathering_id BIGINT NOT NULL REFERENCES gatherings(id),
     user_id      BIGINT NOT NULL REFERENCES users(id),
+    status       VARCHAR(20) NOT NULL DEFAULT 'APPROVED',
     joined_at    TIMESTAMP,
     CONSTRAINT uq_gathering_participants UNIQUE (gathering_id, user_id)
 );

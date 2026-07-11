@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,12 +48,12 @@ public class UserBlockService {
 
     public List<BlockedUserResponse> getBlockedUsers(Long userId) {
         return userBlockRepository.findByBlockerIdOrderByCreatedAtDesc(userId).stream()
-                .map(block -> {
+                .<BlockedUserResponse>map(block -> {
                     User blockedUser = userRepository.findById(block.getBlockedId())
                             .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                     return BlockedUserResponse.from(block, blockedUser);
                 })
-                .toList();
+                .collect(Collectors.toList());
     }
 
     public List<Long> getExcludedUserIds(Long userId) {
