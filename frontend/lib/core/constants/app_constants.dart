@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'http://52.79.194.17:8080';
   static const String kakaoJsKey = '356fdfdb14afebef6e4f16b66bd7c7ea';
   static const String deepLinkScheme = 'eattogether';
   static const String deepLinkHost = 'oauth2';

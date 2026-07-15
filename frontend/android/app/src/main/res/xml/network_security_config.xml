@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 도메인+HTTPS 준비되면 이 파일과 아래 domain-config 삭제 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">52.79.194.17</domain>
+    </domain-config>
+</network-security-config>
