@@ -12,7 +12,12 @@
           "package_name": "com.eattogether.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1019128042472-pjj8ihq3v7mvratv0q9t4a9ovd8lolig.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDxkFveh4hEiGdYnGAUadz_tl3jJjU_664"
@@ -20,7 +25,41 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1019128042472-pjj8ihq3v7mvratv0q9t4a9ovd8lolig.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1019128042472:android:397071564a8b2a96670a5d",
+        "android_client_info": {
+          "package_name": "com.sayhara.eattogether"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1019128042472-pjj8ihq3v7mvratv0q9t4a9ovd8lolig.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxkFveh4hEiGdYnGAUadz_tl3jJjU_664"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1019128042472-pjj8ihq3v7mvratv0q9t4a9ovd8lolig.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
