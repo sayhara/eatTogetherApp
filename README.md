@@ -2,7 +2,7 @@
 
 > 근처의 사람들과 함께 밥을 먹는 소셜 다이닝 앱
 
-🔗 **서비스 주소**: https://eattogetherapp.com
+🔗 **API 서버 주소**: https://eattogetherapp.com (모바일 앱 전용 백엔드, 브라우저로 루트 접속 시 401 정상 — [헬스체크](https://eattogetherapp.com/actuator/health)로 동작 확인 가능)
 📱 **Play Store**: 내부 테스트 단계 (정식 출시 준비 중)
 
 ---
