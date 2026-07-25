@@ -24,7 +24,7 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
 
   Future<UserModel?> _loadUser([String? tokenOverride]) async {
     final token = tokenOverride ?? await ref.read(tokenStorageProvider).getAccessToken();
-    debugPrint('[AUTH] _loadUser: token=${token == null ? "null" : "${token.substring(0, token.length.clamp(0, 20))}..."}');
+    debugPrint('[AUTH] _loadUser: token=${token == null ? "absent" : "present"}');
     if (token == null) return null;
     try {
       final res = await ref.read(apiClientProvider).dio.get('/api/users/me');
