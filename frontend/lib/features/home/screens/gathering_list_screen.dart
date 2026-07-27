@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/location_permission_helper.dart';
 
 final _now = DateTime.now();
 
@@ -89,11 +90,8 @@ class _GatheringListScreenState extends ConsumerState<GatheringListScreen> {
     if (!serviceEnabled) { if (mounted) setState(() => _locationInit = true); return; }
     if (!mounted) return;
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) { if (mounted) setState(() => _locationInit = true); return; }
-    }
+    LocationPermission permission = await ensureLocationPermission();
+    if (permission == LocationPermission.denied) { if (mounted) setState(() => _locationInit = true); return; }
     if (!mounted) return;
     if (permission == LocationPermission.deniedForever) { if (mounted) setState(() => _locationInit = true); return; }
 

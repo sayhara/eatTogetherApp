@@ -4,6 +4,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/gathering_model.dart';
 import '../providers/home_provider.dart';
+import '../../../core/utils/location_permission_helper.dart';
 
 class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
@@ -28,11 +29,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
+    var permission = await ensureLocationPermission();
+    if (permission == LocationPermission.denied) return;
     if (permission == LocationPermission.deniedForever) return;
 
     try {
@@ -49,11 +47,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 
   Future<void> _resetToMyLocation() async {
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      permission = await Geolocator.requestPermission();
-      if (permission != LocationPermission.always && permission != LocationPermission.whileInUse) return;
-    }
+    var permission = await ensureLocationPermission();
+    if (permission != LocationPermission.always && permission != LocationPermission.whileInUse) return;
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),

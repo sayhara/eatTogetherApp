@@ -1,8 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/nickname_setup_screen.dart';
 import '../../features/home/screens/main_screen.dart';
 import '../../features/gathering/screens/gathering_detail_screen.dart';
 import '../../features/gathering/screens/gathering_create_screen.dart';
@@ -11,12 +12,12 @@ import '../../features/chat/screens/chat_screen.dart';
 import '../../features/review/screens/review_screen.dart';
 import '../../features/mypage/screens/mypage_screen.dart';
 import '../../features/mypage/screens/account_settings_screen.dart';
-import '../../features/auth/screens/nickname_setup_screen.dart';
 
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(this._ref) {
     _ref.listen(authProvider, (prev, next) {
-      debugPrint('[ROUTER] authProvider changed: ${prev.runtimeType}(${prev?.value?.id}) => ${next.runtimeType}(${next.value?.id})');
+      debugPrint(
+          '[ROUTER] authProvider changed: ${prev.runtimeType}(${prev?.value?.id}) => ${next.runtimeType}(${next.value?.id})');
       notifyListeners();
     });
   }
@@ -38,7 +39,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoginPath = loc == '/login';
       final isNicknameSetupPath = loc == '/nickname-setup';
 
-      debugPrint('[ROUTER] redirect: loc=$loc, loading=$isLoading, loggedIn=$isLoggedIn, nicknameSet=${user?.nicknameSet}');
+      debugPrint(
+          '[ROUTER] redirect: loc=$loc, loading=$isLoading, loggedIn=$isLoggedIn, nicknameSet=${user?.nicknameSet}');
 
       if (isLoading) return null;
       if (!isLoggedIn && !isLoginPath) return '/login';
@@ -50,10 +52,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       return null;
     },
+    errorBuilder: (context, state) {
+      debugPrint('[ROUTER] unroutable location: ${state.uri}, error=${state.error}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/');
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    },
     routes: [
       GoRoute(
         path: '/login',
         builder: (context, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/nickname-setup',
+        builder: (context, _) => const NicknameSetupScreen(),
       ),
       GoRoute(
         path: '/',
