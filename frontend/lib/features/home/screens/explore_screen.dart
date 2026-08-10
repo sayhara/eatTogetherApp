@@ -85,6 +85,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   Future<void> _onCameraIdle() async {
     if (_mapController == null) return;
     final position = await _mapController!.getCameraPosition();
+    if (!mounted) return;
     final coords = ref.read(nearbyCoordsProvider);
     if (coords == null) return;
     final dist = (position.target.latitude - coords.lat).abs() +
@@ -272,6 +273,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   ),
                   onMapReady: (controller) async {
                     _mapController = controller;
+                    if (!mounted) return;
                     final coords = ref.read(nearbyCoordsProvider);
                     if (coords != null) {
                       await controller.updateCamera(
@@ -280,6 +282,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         ),
                       );
                     }
+                    if (!mounted) return;
                     final gatherings = ref.read(nearbyGatheringsProvider).value ?? [];
                     if (gatherings.isNotEmpty) _updateMarkers(gatherings);
                   },
