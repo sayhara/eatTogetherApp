@@ -54,6 +54,8 @@ public class User {
     private Double latitude;
     private Double longitude;
 
+    private LocalDateTime withdrawnAt;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -77,5 +79,12 @@ public class User {
 
     public void updateNotification(boolean enabled) {
         this.notificationEnabled = enabled;
+    }
+
+    public void withdraw(String anonymizedNickname) {
+        this.nickname = anonymizedNickname;
+        this.email = null;
+        this.profileImageUrl = null;
+        this.withdrawnAt = LocalDateTime.now();
     }
 }

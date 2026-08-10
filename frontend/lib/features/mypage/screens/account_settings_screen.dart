@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   bool? _isNicknameAvailable;
   bool _isSavingNickname = false;
   bool _isSavingNotification = false;
+  bool _isWithdrawing = false;
 
   @override
   void initState() {
@@ -105,6 +107,44 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSavingNotification = false);
+    }
+  }
+
+  Future<void> _confirmWithdraw() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('계정을 탈퇴하시겠습니까?'),
+        content: const Text('탈퇴 시 프로필 정보가 삭제되며 되돌릴 수 없습니다.\n정말로 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('탈퇴', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _withdraw();
+  }
+
+  Future<void> _withdraw() async {
+    setState(() => _isWithdrawing = true);
+    try {
+      await ref.read(apiClientProvider).dio.delete('/api/users/me');
+      await ref.read(authProvider.notifier).logout();
+      if (mounted) context.go('/login');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('탈퇴 처리에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isWithdrawing = false);
     }
   }
 
@@ -239,6 +279,23 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
             const Text(
               '비밀번호는 소셜 계정(카카오/구글/네이버)에서 관리됩니다.',
               style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            Center(
+              child: TextButton(
+                onPressed: _isWithdrawing ? null : _confirmWithdraw,
+                child: _isWithdrawing
+                    ? const SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text(
+                        '계정 탈퇴',
+                        style: TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+              ),
             ),
           ],
         ),

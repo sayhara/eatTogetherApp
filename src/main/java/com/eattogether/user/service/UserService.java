@@ -53,6 +53,15 @@ public class UserService {
         return !userRepository.existsByNicknameAndIdNot(nickname, userId);
     }
 
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = findById(userId);
+        if (user.getWithdrawnAt() != null) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_WITHDRAWN);
+        }
+        user.withdraw("탈퇴한사용자" + userId);
+    }
+
     private User findById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

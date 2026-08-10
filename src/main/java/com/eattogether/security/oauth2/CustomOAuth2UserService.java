@@ -93,6 +93,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private CustomOAuth2User buildOAuth2User(User user, Map<String, Object> attributes, String nameAttributeKey,
                                               boolean isNewUser) {
+        if (user.getWithdrawnAt() != null) {
+            throw new OAuth2AuthenticationException("탈퇴한 계정입니다.");
+        }
         return new CustomOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                 attributes,

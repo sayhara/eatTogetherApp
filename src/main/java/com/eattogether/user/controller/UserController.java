@@ -1,5 +1,6 @@
 package com.eattogether.user.controller;
 
+import com.eattogether.auth.service.AuthService;
 import com.eattogether.common.response.ApiResponse;
 import com.eattogether.user.dto.LocationUpdateRequest;
 import com.eattogether.user.dto.NotificationUpdateRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
     @GetMapping("/me")
     public ApiResponse<UserProfileResponse> getMyProfile(
@@ -52,6 +54,16 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam String nickname) {
         return ApiResponse.ok(userService.isNicknameAvailable(userId(userDetails), nickname));
+    }
+
+    @DeleteMapping("/me")
+    public ApiResponse<Void> withdraw(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestHeader("Authorization") String bearerToken) {
+        Long userId = userId(userDetails);
+        userService.withdraw(userId);
+        authService.logout(bearerToken.substring(7), userId); // "Bearer " 제거
+        return ApiResponse.ok(null);
     }
 
     private Long userId(UserDetails userDetails) {
