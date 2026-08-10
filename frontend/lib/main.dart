@@ -61,6 +61,16 @@ class _EatTogetherAppState extends ConsumerState<EatTogetherApp> {
     if (uri.scheme == 'eattogether' &&
         uri.host == 'oauth2' &&
         uri.path == '/callback') {
+      if (uri.queryParameters['linkRequired'] == 'true') {
+        final linkToken = uri.queryParameters['linkToken'];
+        final email = uri.queryParameters['email'] ?? '';
+        debugPrint('[DEEPLINK] linkRequired, linkToken=${linkToken == null ? "null" : "present"}');
+        if (linkToken != null && mounted) {
+          ref.read(routerProvider).go(
+              '/link-account?linkToken=$linkToken&email=${Uri.encodeComponent(email)}');
+        }
+        return;
+      }
       final accessToken = uri.queryParameters['accessToken'];
       final refreshToken = uri.queryParameters['refreshToken'];
       debugPrint('[DEEPLINK] accessToken=${accessToken == null ? "null" : "present"}, refreshToken=${refreshToken == null ? "null" : "present"}');

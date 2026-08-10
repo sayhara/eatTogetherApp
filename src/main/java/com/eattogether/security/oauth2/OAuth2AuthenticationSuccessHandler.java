@@ -28,13 +28,30 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
+
+        if (oAuth2User.isLinkRequired()) {
+            String linkTargetUrl = UriComponentsBuilder.fromUriString(redirectUri)
+                    .queryParam("linkRequired", true)
+                    .queryParam("linkToken", oAuth2User.getLinkToken())
+                    .queryParam("email", oAuth2User.getEmail())
+                    .build()
+                    .encode()
+                    .toUriString();
+
+            log.debug("OAuth2 login requires account link confirmation: email={}", oAuth2User.getEmail());
+            getRedirectStrategy().sendRedirect(request, response, linkTargetUrl);
+            return;
+        }
+
         TokenDto tokenDto = authService.issueTokens(oAuth2User.getUserId(), "USER");
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("accessToken", tokenDto.getAccessToken())
                 .queryParam("refreshToken", tokenDto.getRefreshToken())
                 .queryParam("isNewUser", oAuth2User.isNewUser())
-                .build().toUriString();
+                .build()
+                .encode()
+                .toUriString();
 
         log.debug("OAuth2 login success, redirecting to app: userId={}", oAuth2User.getUserId());
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

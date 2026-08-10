@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/link_account_screen.dart';
 import '../../features/auth/screens/nickname_setup_screen.dart';
 import '../../features/home/screens/main_screen.dart';
 import '../../features/gathering/screens/gathering_detail_screen.dart';
@@ -37,13 +38,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = user != null;
       final loc = state.matchedLocation;
       final isLoginPath = loc == '/login';
+      final isLinkAccountPath = loc == '/link-account';
       final isNicknameSetupPath = loc == '/nickname-setup';
 
       debugPrint(
           '[ROUTER] redirect: loc=$loc, loading=$isLoading, loggedIn=$isLoggedIn, nicknameSet=${user?.nicknameSet}');
 
       if (isLoading) return null;
-      if (!isLoggedIn && !isLoginPath) return '/login';
+      if (!isLoggedIn && !isLoginPath && !isLinkAccountPath) return '/login';
       if (isLoggedIn && isLoginPath) {
         return (user.nicknameSet) ? '/' : '/nickname-setup';
       }
@@ -63,6 +65,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, _) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/link-account',
+        builder: (context, state) => LinkAccountScreen(
+          linkToken: state.uri.queryParameters['linkToken'] ?? '',
+          email: state.uri.queryParameters['email'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/nickname-setup',

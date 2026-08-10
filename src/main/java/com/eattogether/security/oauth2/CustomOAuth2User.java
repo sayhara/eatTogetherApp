@@ -13,16 +13,22 @@ public class CustomOAuth2User extends DefaultOAuth2User {
     private final Long userId;
     private final String email;
     private final boolean isNewUser;
+    private final boolean linkRequired;
+    private final String linkToken;
 
     public CustomOAuth2User(Collection<? extends GrantedAuthority> authorities,
                             Map<String, Object> attributes,
                             String nameAttributeKey,
                             Long userId,
                             String email,
-                            boolean isNewUser) {
+                            boolean isNewUser,
+                            boolean linkRequired,
+                            String linkToken) {
         super(authorities, attributes, nameAttributeKey);
         this.userId = userId;
         this.email = email;
         this.isNewUser = isNewUser;
+        this.linkRequired = linkRequired;
+        this.linkToken = linkToken;
     }
 }

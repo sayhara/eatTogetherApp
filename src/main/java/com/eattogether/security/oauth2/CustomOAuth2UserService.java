@@ -1,12 +1,14 @@
 package com.eattogether.security.oauth2;
 
+import com.eattogether.auth.service.OAuthAccountLinkService;
 import com.eattogether.security.oauth2.userinfo.GoogleOAuth2UserInfo;
 import com.eattogether.security.oauth2.userinfo.KakaoOAuth2UserInfo;
 import com.eattogether.security.oauth2.userinfo.NaverOAuth2UserInfo;
 import com.eattogether.security.oauth2.userinfo.OAuth2UserInfo;
 import com.eattogether.user.domain.Provider;
-import com.eattogether.user.domain.Role;
 import com.eattogether.user.domain.User;
+import com.eattogether.user.domain.UserOAuthConnection;
+import com.eattogether.user.repository.UserOAuthConnectionRepository;
 import com.eattogether.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,13 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final UserOAuthConnectionRepository connectionRepository;
+    private final OAuthAccountLinkService oAuthAccountLinkService;
 
     @Override
     @Transactional
@@ -44,33 +48,60 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         };
 
         Provider provider = Provider.valueOf(registrationId.toUpperCase());
-        AtomicBoolean isNewUser = new AtomicBoolean(false);
+        String providerId = userInfo.getProviderId();
 
-        User user = userRepository.findByProviderAndProviderId(provider, userInfo.getProviderId())
-                .orElseGet(() -> {
-                    isNewUser.set(true);
-                    String tempNickname = "user_" + userInfo.getProviderId().substring(0, Math.min(8, userInfo.getProviderId().length()));
-                    return userRepository.save(User.builder()
-                            .email(userInfo.getEmail())
-                            .nickname(tempNickname)
-                            .profileImageUrl(userInfo.getProfileImageUrl())
-                            .provider(provider)
-                            .providerId(userInfo.getProviderId())
-                            .role(Role.USER)
-                            .build());
-                });
-
-        if (!isNewUser.get()) {
+        // 1. 이미 연동된 provider 계정인지 확인
+        Optional<UserOAuthConnection> connection = connectionRepository.findByProviderAndProviderId(provider, providerId);
+        if (connection.isPresent()) {
+            User user = connection.get().getUser();
             user.updateProfileImage(userInfo.getProfileImageUrl());
+            return buildOAuth2User(user, attributes, userNameAttributeName, false);
         }
 
+        // 2. 레거시 폴백: V4 마이그레이션 백필 이전(로컬 등)에 생성된 기존 계정 자가 치유
+        Optional<User> legacyUser = userRepository.findByProviderAndProviderId(provider, providerId);
+        if (legacyUser.isPresent()) {
+            User user = legacyUser.get();
+            connectionRepository.save(UserOAuthConnection.builder()
+                    .user(user)
+                    .provider(provider)
+                    .providerId(providerId)
+                    .build());
+            user.updateProfileImage(userInfo.getProfileImageUrl());
+            return buildOAuth2User(user, attributes, userNameAttributeName, false);
+        }
+
+        // 3. 연동 후보: 다른 provider로 이미 가입된 동일 이메일 계정이 있으면 즉시 계정을 만들지 않고 확인 절차로 넘김
+        String email = userInfo.getEmail();
+        if (email != null) {
+            Optional<User> existingByEmail = userRepository.findByEmail(email);
+            if (existingByEmail.isPresent()) {
+                String linkToken = oAuthAccountLinkService.issuePendingLink(
+                        provider, providerId, email, existingByEmail.get().getId());
+                return new CustomOAuth2User(
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")),
+                        attributes, userNameAttributeName,
+                        null, email, false, true, linkToken);
+            }
+        }
+
+        // 4. 완전히 새로운 사용자
+        User newUser = oAuthAccountLinkService.createUserAndConnection(
+                provider, providerId, email, userInfo.getProfileImageUrl());
+        return buildOAuth2User(newUser, attributes, userNameAttributeName, true);
+    }
+
+    private CustomOAuth2User buildOAuth2User(User user, Map<String, Object> attributes, String nameAttributeKey,
+                                              boolean isNewUser) {
         return new CustomOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                 attributes,
-                userNameAttributeName,
+                nameAttributeKey,
                 user.getId(),
                 user.getEmail(),
-                isNewUser.get()
+                isNewUser,
+                false,
+                null
         );
     }
 }
