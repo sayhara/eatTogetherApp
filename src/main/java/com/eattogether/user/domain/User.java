@@ -87,4 +87,17 @@ public class User {
         this.profileImageUrl = null;
         this.withdrawnAt = LocalDateTime.now();
     }
+
+    public boolean isWithdrawn() {
+        return this.withdrawnAt != null;
+    }
+
+    // 탈퇴했던 사용자가 같은 소셜 계정으로 다시 로그인하면 신규 가입과 동일하게 초기화한다.
+    public void reactivate(String tempNickname, String email, String profileImageUrl) {
+        this.nickname = tempNickname;
+        this.email = email;
+        this.profileImageUrl = profileImageUrl;
+        this.nicknameSet = false;
+        this.withdrawnAt = null;
+    }
 }

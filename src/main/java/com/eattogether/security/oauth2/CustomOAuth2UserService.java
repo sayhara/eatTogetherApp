@@ -53,9 +53,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // 1. 이미 연동된 provider 계정인지 확인
         Optional<UserOAuthConnection> connection = connectionRepository.findByProviderAndProviderId(provider, providerId);
         if (connection.isPresent()) {
-            User user = connection.get().getUser();
-            user.updateProfileImage(userInfo.getProfileImageUrl());
-            return buildOAuth2User(user, attributes, userNameAttributeName, false);
+            return resolveExistingUser(connection.get().getUser(), providerId, userInfo, attributes, userNameAttributeName);
         }
 
         // 2. 레거시 폴백: V4 마이그레이션 백필 이전(로컬 등)에 생성된 기존 계정 자가 치유
@@ -67,8 +65,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .provider(provider)
                     .providerId(providerId)
                     .build());
-            user.updateProfileImage(userInfo.getProfileImageUrl());
-            return buildOAuth2User(user, attributes, userNameAttributeName, false);
+            return resolveExistingUser(user, providerId, userInfo, attributes, userNameAttributeName);
         }
 
         // 3. 연동 후보: 다른 provider로 이미 가입된 동일 이메일 계정이 있으면 즉시 계정을 만들지 않고 확인 절차로 넘김
@@ -91,11 +88,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return buildOAuth2User(newUser, attributes, userNameAttributeName, true);
     }
 
+    // 탈퇴한 계정으로 같은 provider 로그인을 다시 시도하면 신규 가입처럼 재활성화한다.
+    private CustomOAuth2User resolveExistingUser(User user, String providerId, OAuth2UserInfo userInfo,
+                                                  Map<String, Object> attributes, String nameAttributeKey) {
+        if (user.isWithdrawn()) {
+            String tempNickname = "user_" + providerId.substring(0, Math.min(8, providerId.length()));
+            user.reactivate(tempNickname, userInfo.getEmail(), userInfo.getProfileImageUrl());
+            return buildOAuth2User(user, attributes, nameAttributeKey, true);
+        }
+        user.updateProfileImage(userInfo.getProfileImageUrl());
+        return buildOAuth2User(user, attributes, nameAttributeKey, false);
+    }
+
     private CustomOAuth2User buildOAuth2User(User user, Map<String, Object> attributes, String nameAttributeKey,
                                               boolean isNewUser) {
-        if (user.getWithdrawnAt() != null) {
-            throw new OAuth2AuthenticationException("탈퇴한 계정입니다.");
-        }
         return new CustomOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                 attributes,
