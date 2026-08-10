@@ -42,7 +42,11 @@ class ApiClient {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401) {
+    // reissue 요청 자체가 401이면(리프레시 토큰도 무효) 재발급을 다시 시도하지 않는다.
+    // 그렇지 않으면 _doRefresh()가 이 인터셉터를 재귀 호출해 자기 자신의 완료를
+    // 기다리는 데드락에 빠진다.
+    final isReissueRequest = err.requestOptions.path == '/api/auth/reissue';
+    if (err.response?.statusCode == 401 && !isReissueRequest) {
       // Mutex: if refresh is already in progress, wait for it
       if (_refreshFuture != null) {
         await _refreshFuture;
