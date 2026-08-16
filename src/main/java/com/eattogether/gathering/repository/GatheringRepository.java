@@ -34,13 +34,20 @@ public interface GatheringRepository extends JpaRepository<Gathering, Long> {
             @Param("category") FoodCategory category,
             @Param("keyword") String keyword);
 
-    @Query("SELECT g FROM Gathering g JOIN FETCH g.host WHERE g.host.id = :hostId ORDER BY g.createdAt DESC")
+    @Query("""
+        SELECT DISTINCT g FROM Gathering g
+        JOIN FETCH g.host
+        LEFT JOIN FETCH g.participants
+        WHERE g.host.id = :hostId
+        ORDER BY g.createdAt DESC
+        """)
     List<Gathering> findByHostId(@Param("hostId") Long hostId);
 
     @Query("""
         SELECT DISTINCT g FROM Gathering g
         JOIN FETCH g.host
         JOIN g.participants p
+        LEFT JOIN FETCH g.participants
         WHERE p.user.id = :userId AND p.status = :status
         ORDER BY g.mealTime ASC
         """)
