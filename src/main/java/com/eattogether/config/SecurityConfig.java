@@ -45,7 +45,10 @@ public class SecurityConfig {
                                 "/ws/**",          // WebSocket 핸드셰이크 (인증은 STOMP 레벨에서)
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/privacy",
+                                "/delete-account",
+                                "/child-safety-standards"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
