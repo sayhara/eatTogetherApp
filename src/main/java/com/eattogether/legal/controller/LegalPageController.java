@@ -15,17 +15,17 @@ public class LegalPageController {
 
     @GetMapping("/privacy")
     public ResponseEntity<String> privacy() throws IOException {
-        return htmlPage("legal/privacy.html");
+        return htmlPage("static/legal/privacy.html");
     }
 
     @GetMapping("/delete-account")
     public ResponseEntity<String> deleteAccount() throws IOException {
-        return htmlPage("legal/delete-account.html");
+        return htmlPage("static/legal/delete-account.html");
     }
 
     @GetMapping("/child-safety-standards")
     public ResponseEntity<String> childSafetyStandards() throws IOException {
-        return htmlPage("legal/child-safety-standards.html");
+        return htmlPage("static/legal/child-safety-standards.html");
     }
 
     private ResponseEntity<String> htmlPage(String classpathLocation) throws IOException {
