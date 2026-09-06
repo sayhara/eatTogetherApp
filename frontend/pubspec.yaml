@@ -1,7 +1,7 @@
 name: eat_together
 description: "근처의 사람들과 함께 밥을 먹는 소셜 다이닝 앱"
 publish_to: 'none'
-version: 1.1.0+3
+version: 1.1.1+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
